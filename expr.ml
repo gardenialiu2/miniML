@@ -118,5 +118,29 @@ let rec exp_to_concrete_string (exp : expr) : string =
      
 (* exp_to_abstract_string exp -- Return a string representation of the
    abstract syntax of the expression `exp` *)
-let exp_to_abstract_string (exp : expr) : string =
-  failwith "exp_to_abstract_string not implemented" ;;
+let rec exp_to_abstract_string (exp : expr) : string = 
+  match exp with
+  | Var v -> "Var(" ^ v ^ ")"                    
+  | Num n -> "Num(" ^ string_of_int n ^ ")"                 
+  | Bool b -> "Bool(" ^ (if b then "true" else "false") ^ ")"                
+  | Unop (unop, expr) -> "Unop(Neg(" ^ (exp_to_abstract_string expr) ^ "))"                
+  | Binop (binop, expr1, expr2) -> let b_string = 
+      (match binop with
+      | Plus -> "Plus"
+      | Minus -> "Minus"
+      | Times -> "Times"
+      | Equals -> "Equals"
+      | LessThan -> "LessThan"
+      ) in
+    "Binop(" ^ b_string ^ ", " ^ (exp_to_abstract_string expr1) ^ ", " ^ (exp_to_abstract_string expr2) ^ ")"       (* binary operators *)
+  | Conditional (expr1, expr2, expr3) -> "Conditional(" ^ (exp_to_abstract_string expr1) ^
+     ", " ^ (exp_to_abstract_string expr2) ^ ", " ^ (exp_to_abstract_string expr3) ^ ")"
+  | Fun (v, expr) -> "Fun(" ^ v ^ ", " ^ (exp_to_abstract_string expr) ^ ")"           
+  | Let (v, expr1, expr2) -> "Let(" ^ v ^ ", " ^ (exp_to_abstract_string expr1) ^
+     ", " ^ (exp_to_abstract_string expr2) ^ ")"
+  | Letrec (v, expr1, expr2) -> "Letrec(" ^ v ^ ", " ^ (exp_to_abstract_string expr1) ^
+  ", " ^ (exp_to_abstract_string expr2) ^ ")" (* recursive local naming *)
+  | Raise -> "raise exception"                              (* exceptions *)
+  | Unassigned -> ", "                          (* (temporarily) unassigned *)
+  | App (expr1, expr2) -> "App(" ^ (exp_to_abstract_string expr1) ^ ", " ^ (exp_to_abstract_string expr2) ^ ")"              (* function applications *)
+;;
