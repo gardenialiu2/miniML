@@ -60,8 +60,20 @@ let vars_of_list : string list -> varidset =
   
 (* free_vars exp -- Returns the set of `varid`s corresponding to free
    variables in `exp` *)
-let free_vars (exp : expr) : varidset =
-  failwith "free_vars not implemented" ;;
+(* TODOOO how to test? *)
+let rec free_vars (exp : expr) : varidset =
+  match exp with
+  | Var v -> SS.add v SS.empty (* TODOO is this right? *)
+  | Num _ | Bool _ | Raise | Unassigned -> SS.empty  
+  | Unop (_unop, expr) -> free_vars expr                
+  | Binop (_binop, expr1, expr2) -> SS.union (free_vars expr1) (free_vars expr2)
+  | Conditional (expr1, expr2, expr3) -> SS.union (SS.union (free_vars expr1) (free_vars expr2)) (free_vars expr3)
+  | Fun (v, expr) -> SS.remove v (free_vars expr)
+  | Let (v, expr1, expr2) -> SS.union (SS.remove v (free_vars expr2)) (free_vars expr1)
+  | Letrec (v, expr1, expr2) -> SS.union 
+                    (SS.remove v (free_vars expr1))
+                    (SS.remove v (free_vars expr2)) (* see if theres another function? diff? *)
+  | App (expr1, expr2) -> SS.union (free_vars expr1) (free_vars expr2)
   
 (* new_varname () -- Returns a freshly minted `varid` with prefix
    "var" and a running counter a la `gensym`. Assumes no other
@@ -81,8 +93,21 @@ let new_varname () : varid =
 (* subst var_name repl exp -- Return the expression `exp` with `repl`
    substituted for free occurrences of `var_name`, avoiding variable
    capture *)
-let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
-  failwith "subst not implemented" ;;
+let subst (var_name : varid) (repl : expr) (exp : expr) : expr = exp ;;
+  let subbed = subst var_name repl in
+  match exp with
+  | Var v -> if x = var_name then exp else repl
+  | Num _ | Bool _ | Raise | Unassigned -> exp
+  | Unop (unop, expr) -> Unop (unop, subbed expr)                
+  | Binop (binop, expr1, expr2) -> Binop (binop, subbed expr1, subbed expr2)     
+  | Conditional (expr1, expr2, expr3) -> Conditional (subbed expr1, subbed expr2, subbed expr3)
+  | Fun (v, expr) -> 
+    if v = var_name then Fun (v, expr)
+    else if SS.mem v (free_vars exp) then
+  ?    let new_v = new_varname () in Fun(new_v, subst new_v repl expr) ??
+  ? | Let (v, expr1, expr2) -> ??
+  ? | Letrec (v, expr1, expr2) -> ??
+  | App (expr1, expr2) -> App (subbed expr1, subbed expr2)
      
 (*......................................................................
   String representations of expressions
@@ -103,17 +128,19 @@ let rec exp_to_concrete_string (exp : expr) : string =
       | Equals -> "="
       | LessThan -> "<"
       ) in
-    (exp_to_concrete_string expr1) ^ b_string ^ (exp_to_concrete_string expr2)        (* binary operators *)
-  | Conditional (expr1, expr2, expr3) -> "if " ^ (exp_to_concrete_string expr1) ^
-     " then " ^ (exp_to_concrete_string expr2) ^ " else " ^ (exp_to_concrete_string expr3) (* if then else ???? *)
+    (exp_to_concrete_string expr1) ^ b_string ^ (exp_to_concrete_string expr2)       
+  | Conditional (expr1, expr2, expr3) -> "if " ^ (exp_to_concrete_string expr1) 
+    ^ " then " ^ (exp_to_concrete_string expr2) ^ " else " ^ 
+    (exp_to_concrete_string expr3) 
   | Fun (v, expr) -> "fun " ^ v ^ " -> " ^ (exp_to_concrete_string expr)            
-  | Let (v, expr1, expr2) -> "let " ^ v ^ " = " ^ (exp_to_concrete_string expr1) ^
-     " in " ^ (exp_to_concrete_string expr2)
-  | Letrec (v, expr1, expr2) -> "let rec " ^ v ^ " = " ^ (exp_to_concrete_string expr1) ^
-  " in " ^ (exp_to_concrete_string expr2) (* recursive local naming *)
-  | Raise -> "raise exception"                              (* exceptions *)
-  | Unassigned -> " = "                          (* (temporarily) unassigned *)
-  | App (expr1, expr2) -> (exp_to_concrete_string expr1) ^ " " ^ (exp_to_concrete_string expr2)               (* function applications *)
+  | Let (v, expr1, expr2) -> "let " ^ v ^ " = " ^ 
+    (exp_to_concrete_string expr1) ^ " in " ^ (exp_to_concrete_string expr2)
+  | Letrec (v, expr1, expr2) -> "let rec " ^ v ^ " = " ^ 
+    (exp_to_concrete_string expr1) ^ " in " ^ (exp_to_concrete_string expr2)
+  | Raise -> "raise exception"                           
+  | Unassigned -> " = "                          
+  | App (expr1, expr2) -> (exp_to_concrete_string expr1) ^ " " ^ 
+    (exp_to_concrete_string expr2)        
 ;;
      
 (* exp_to_abstract_string exp -- Return a string representation of the
@@ -132,15 +159,18 @@ let rec exp_to_abstract_string (exp : expr) : string =
       | Equals -> "Equals"
       | LessThan -> "LessThan"
       ) in
-    "Binop(" ^ b_string ^ ", " ^ (exp_to_abstract_string expr1) ^ ", " ^ (exp_to_abstract_string expr2) ^ ")"       (* binary operators *)
-  | Conditional (expr1, expr2, expr3) -> "Conditional(" ^ (exp_to_abstract_string expr1) ^
-     ", " ^ (exp_to_abstract_string expr2) ^ ", " ^ (exp_to_abstract_string expr3) ^ ")"
+    "Binop(" ^ b_string ^ ", " ^ (exp_to_abstract_string expr1) ^ ", " ^ 
+    (exp_to_abstract_string expr2) ^ ")"     
+  | Conditional (expr1, expr2, expr3) -> "Conditional(" ^ 
+    (exp_to_abstract_string expr1) ^ ", " ^ (exp_to_abstract_string expr2) ^ 
+    ", " ^ (exp_to_abstract_string expr3) ^ ")"
   | Fun (v, expr) -> "Fun(" ^ v ^ ", " ^ (exp_to_abstract_string expr) ^ ")"           
-  | Let (v, expr1, expr2) -> "Let(" ^ v ^ ", " ^ (exp_to_abstract_string expr1) ^
-     ", " ^ (exp_to_abstract_string expr2) ^ ")"
-  | Letrec (v, expr1, expr2) -> "Letrec(" ^ v ^ ", " ^ (exp_to_abstract_string expr1) ^
-  ", " ^ (exp_to_abstract_string expr2) ^ ")" (* recursive local naming *)
-  | Raise -> "raise exception"                              (* exceptions *)
-  | Unassigned -> ", "                          (* (temporarily) unassigned *)
-  | App (expr1, expr2) -> "App(" ^ (exp_to_abstract_string expr1) ^ ", " ^ (exp_to_abstract_string expr2) ^ ")"              (* function applications *)
+  | Let (v, expr1, expr2) -> "Let(" ^ v ^ ", " ^ (exp_to_abstract_string expr1) 
+    ^ ", " ^ (exp_to_abstract_string expr2) ^ ")"
+  | Letrec (v, expr1, expr2) -> "Letrec(" ^ v ^ ", " ^ 
+    (exp_to_abstract_string expr1) ^ ", " ^ (exp_to_abstract_string expr2) ^ ")"
+  | Raise -> "raise exception"                           
+  | Unassigned -> ", "                         
+  | App (expr1, expr2) -> "App(" ^ (exp_to_abstract_string expr1) ^ ", " ^ 
+    (exp_to_abstract_string expr2) ^ ")"   
 ;;
