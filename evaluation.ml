@@ -117,8 +117,28 @@ let eval_t (exp : expr) (_env : Env.env) : Env.value =
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
    
-let eval_s (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_s not implemented" ;;
+let rec eval_s (exp : expr) (env : Env.env) : Env.value =
+  match exp with
+  | Var _ | Num _ | Bool _ -> Env.Val exp
+  | Unop (unop, expr1) -> 
+    let Val expr2 = eval_s expr1 env in 
+    match unop, expr2 with
+    | Negate, Num x -> Env.Val (Num (-x))
+    | _, _ -> raise (EvalError "Can't negate non-integers")
+  | Binop (binop, left_expr, right_expr) -> 
+    let Env.Val left = (eval_s left_expr env) in
+    let Env.Val right = (eval_s right_expr env) in
+    Env.Val (____ binop left right) (* todo write function that matches and evals *)
+  | Conditional (if_expr, then_expr, else_expr) -> 
+    if ___ then eval_s then_expr env else eval_s else_expr env
+  | Fun (_v, _expr) -> Env.Val exp
+  | Let (v, def_expr, body_expr) -> 
+    let Env.Val def_expr = eval_s def_expr env in
+    eval_s (subst v def_expr body_expr) env
+  | Letrec (v, expr1, expr2) -> TODO ???
+  | App (expr1, expr2) -> TODO ??? 
+  | Raise -> Env.Val Raise
+  | Unassigned -> Env.Val Unassigned 
      
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
