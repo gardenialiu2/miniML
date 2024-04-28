@@ -64,7 +64,7 @@ let vars_of_list : string list -> varidset =
 (* TODOOO how to test? *)
 let rec free_vars (exp : expr) : varidset =
   match exp with
-  | Var v -> SS.singleton v (* TODOO is this right? *)
+  | Var v -> SS.singleton v 
   | Num _ | Bool _ | Raise | Unassigned -> SS.empty  
   | Unop (_unop, expr) -> free_vars expr                
   | Binop (_binop, expr1, expr2) -> SS.union (free_vars expr1) (free_vars expr2)
@@ -83,9 +83,9 @@ let rec free_vars (exp : expr) : varidset =
 
 let new_varname () : varid =
   let suffix = ref 0 in
-  fun () -> let symbol = "v" ^ string_of_int !suffix in
+  fun () -> 
     suffix := !suffix + 1;
-    symbol ;;
+    "v" ^ string_of_int !suffix ;;
 
 (*......................................................................
   Substitution 
@@ -101,7 +101,7 @@ let new_varname () : varid =
 let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   let subbed = subst var_name repl in
   match exp with
-  | Var v -> if v = var_name then repl else v
+  | Var v -> if v = var_name then repl else exp
   | Num _ | Bool _ | Raise | Unassigned -> exp
   | Unop (unop, expr1) -> Unop (unop, subbed expr1)                
   | Binop (binop, left_expr, right_expr) -> Binop (binop, subbed left_expr, subbed right_expr)     
@@ -116,12 +116,14 @@ let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
     else if not (SS.mem v (free_vars repl)) then Let(v, subbed def_expr, subbed body_expr)
     else  
       let z = new_varname () in Let(z, subst z repl expr1, subbed body_expr) 
-  ? | Letrec (v, def_expr, body_expr) -> if v = var_name then Letrec(v, def_expr, body_expr) 
-  else if (SS.mem v (free_vars repl)) then 
-    let z = new_varname () in Letrec (z, (subst var_name (subst v def_expr (Var z)) exp),
-    (subst var_name (subst v body_expr (Var z) exp)))
+  | Letrec (v, def_expr, body_expr) -> 
+      if v = var_name then exp
+      else if SS.mem v (free_vars repl) then 
+        let z = new_varname () in Letrec (z, subbed (subst var_name (Var z) def_exp),
+      (subbed (subst v (Var z)) exp))
+  else Letrec (v, sub)
   | App (expr1, expr2) -> App (subbed expr1, subbed expr2)
-     
+ 
 (*......................................................................
   String representations of expressions
  *)
@@ -131,7 +133,7 @@ let rec exp_to_concrete_string (exp : expr) : string =
   match exp with
   | Var v -> v                     
   | Num n -> string_of_int n                  
-  | Bool b -> if b then "true" else "false"    (* string_of_bool *)            
+  | Bool b -> string_of_bool b     
   | Unop (unop, expr) -> "-" ^ (exp_to_concrete_string expr)               
   | Binop (binop, expr1, expr2) -> let b_string = 
       (match binop with
@@ -150,8 +152,8 @@ let rec exp_to_concrete_string (exp : expr) : string =
     (exp_to_concrete_string expr1) ^ " in " ^ (exp_to_concrete_string expr2)
   | Letrec (v, expr1, expr2) -> "let rec " ^ v ^ " = " ^ 
     (exp_to_concrete_string expr1) ^ " in " ^ (exp_to_concrete_string expr2)
-  | Raise -> "raise exception"        (* ?? *)                    
-  | Unassigned -> " = "              (* ?? *)            
+  | Raise -> "Raise"        (* ?? *)                    
+  | Unassigned -> "Unassigned"              (* ?? *)            
   | App (expr1, expr2) -> (exp_to_concrete_string expr1) ^ " " ^ 
     (exp_to_concrete_string expr2)        
 ;;

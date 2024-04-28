@@ -70,7 +70,7 @@ module Env : ENV =
     let empty () : env = []
 
     let close (exp : expr) (env : env) : value =
-      failwith "close not implemented"
+      Closure (exp, env)
 
     let lookup (env : env) (varname : varid) : value =
       failwith "lookup not implemented"
@@ -82,7 +82,10 @@ module Env : ENV =
       failwith "value_to_string not implemented"
 
     let env_to_string (env : env) : string =
-      failwith "env_to_string not implemented"
+      match env with
+      | [] -> "[]"
+      | (v, r) :: tl -> 
+        v ^ " -> " ^ value_to_string !r ^ ", " ^ env_to_string tl
   end
 ;;
 
@@ -111,12 +114,30 @@ module Env : ENV =
    essentially unchanged, just converted to a value for consistency
    with the signature of the evaluators. *)
    
+open Env ;;
+
 let eval_t (exp : expr) (_env : Env.env) : Env.value =
   (* coerce the expr, unchanged, into a value *)
   Env.Val exp ;;
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
-   
+
+let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr = 
+  match b, left_expr, right_expr with
+  | Plus, Num x1, Num x2 -> Num (x1 + x2)
+  | Minus, Num x1, Num x2 -> Num (x1 - x2)
+  | Times, Num x1, Num x2 -> Num (x1 * x2)
+  | Equals, Num x1, Num x2 -> Bool (x1 = x2)
+  | Lessthan, Num x1, Num x2 -> Num (x1 + x2)
+  | _ -> raise (EvalError "Invalid binop")
+
+let conditioneval (exp : Env.value) : bool = 
+  match exp with
+  | Closure (_, _) -> raise (Invalid_arg "Invalid closure")
+  | Val v -> match v with
+            | Bool b -> b 
+            | _ -> raise (Invalid_arg "Not boolean")
+
 let rec eval_s (exp : expr) (env : Env.env) : Env.value =
   match exp with
   | Var _ | Num _ | Bool _ -> Env.Val exp
@@ -128,37 +149,100 @@ let rec eval_s (exp : expr) (env : Env.env) : Env.value =
   | Binop (binop, left_expr, right_expr) -> 
     let Env.Val left = (eval_s left_expr env) in
     let Env.Val right = (eval_s right_expr env) in
-    Env.Val (____ binop left right) (* todo write function that matches and evals *)
+    Env.Val (binopeval binop left right) 
   | Conditional (if_expr, then_expr, else_expr) -> 
-    if ___ then eval_s then_expr env else eval_s else_expr env
-  | Fun (_v, _expr) -> Env.Val exp
+    if conditioneval if_expr then eval_s then_expr env else eval_s else_expr env
+  | Fun _ -> Env.Val exp
   | Let (v, def_expr, body_expr) -> 
-    let Env.Val def_expr = eval_s def_expr env in
-    eval_s (subst v def_expr body_expr) env
-  | Letrec (v, expr1, expr2) -> TODO ???
-  | App (expr1, expr2) -> TODO ??? 
+    let Env.Val val_d = eval_s def_expr env in
+    eval_s (subst v val_d body_expr) env
+  | Letrec (v, expr1, expr2) -> 
+    let Env.Val val_d = eval_s def_expr env in
+    eval_s (subst v val_d body_expr) env ???
+  | App (expr1, expr2) -> 
+    let def, body = match expr1 with
+    | Fun (def_expr, body_expr) -> def_expr, body_expr
+    | _ -> raise (EvalError "Can't apply non function") in
+    let Env.Val val_q = eval_s expr2 in
+    eval_s (subst def val_q body) env (* TODOOOO *)
   | Raise -> Env.Val Raise
   | Unassigned -> Env.Val Unassigned 
      
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
    
-let eval_d (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_d not implemented" ;;
+let rec eval_d (exp : expr) (env : Env.env) : Env.value =
+  match exp with 
+  | Var v -> Env.Val exp
+  | Num n -> n
+  | Bool b -> b
+  | Unop (unop, expr1) -> 
+    let Val expr2 = eval_d expr1 env in 
+    match unop, expr2 with
+    | Negate, Num x -> Env.Val (Num (-x))
+    | _, _ -> raise (EvalError "Can't negate non-integers")
+  | Binop (binop, left_expr, right_expr) -> 
+    let Env.Val left = eval_d left_expr env in
+    let Env.Val right = eval_d right_expr env in
+    Env.Val (binopeval binop left right) 
+  | Conditional (if_expr, then_expr, else_expr) -> 
+    if conditioneval if_expr then eval_d then_expr env else eval_d else_expr env
+  | Fun (_v, _expr) -> Env.Val exp
+  | Let (v, def_expr, body_expr) -> (* TODOOOO!!!! *)
+    let Env.Val left = eval_d left_expr env in
+    let Env.Val right = eval_d right_expr env in
+    Env.Val (binopeval binop left right) 
+  | Letrec (v, def_expr, body_expr) -> ??
+  | App (expr1, expr2) ->
+    let def, body = match expr1 with
+    | Fun (v, body_expr) -> v, body_expr
+    | _ -> raise (EvalError "Can't apply non function") in
+    let Env.Val val_q = eval_d expr2 in
+    eval_d (subst def val_q body) env (* TODOOOO *)
+  | Raise -> Env.Val Raise
+  | Unassigned -> Env.Val Unassigned 
+  
        
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
    
-let eval_l (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_l not implemented" ;;
+let eval_l (exp : expr) (env : Env.env) : Env.value =
+  match exp with 
+  | Var v -> Env.Val exp
+  | Num n -> n
+  | Bool b -> b
+  | Unop (unop, expr1) -> 
+    (* let Val expr2 = eval_d expr1 env in 
+    match unop, expr2 with
+    | Negate, Num x -> Env.Val (Num (-x))
+    | _, _ -> raise (EvalError "Can't negate non-integers") *)
+  | Binop (binop, left_expr, right_expr) -> 
+    (* let Env.Val left = eval_d left_expr env in
+    let Env.Val right = eval_d right_expr env in
+    Env.Val (binopeval binop left right)  *)
+  | Conditional (if_expr, then_expr, else_expr) -> 
+    (* if conditioneval if_expr then eval_d then_expr env else eval_d else_expr env *)
+  | Fun (_v, _expr) -> Env.Val exp
+  | Let (v, def_expr, body_expr) -> (* TODOOOO!!!! *)
+    (* let Env.Val left = eval_d left_expr env in
+    let Env.Val right = eval_d right_expr env in
+    Env.Val (binopeval binop left right)  *)
+  | Letrec (v, def_expr, body_expr) -> ??
+  | App (expr1, expr2) ->
+    (* let def, body = match expr1 with
+    | Fun (v, body_expr) -> v, body_expr
+    | _ -> raise (EvalError "Can't apply non function") in
+    let Env.Val val_q = eval_d expr2 in
+    eval_d (subst def val_q body) env TODOOOO *)
+  | Raise -> Env.Val Raise
+  | Unassigned -> Env.Val Unassigned 
 
 (* The EXTENDED evaluator -- if you want, you can provide your
    extension as a separate evaluator, or if it is type- and
    correctness-compatible with one of the above, you can incorporate
    your extensions within `eval_s`, `eval_d`, or `eval_l`. *)
 
-let eval_e _ =
-  failwith "eval_e not implemented" ;;
+let eval_e _ = eval_l ;;
   
 (* Connecting the evaluators to the external world. The REPL in
    `miniml.ml` uses a call to the single function `evaluate` defined
