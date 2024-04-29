@@ -17,6 +17,7 @@ type binop =
   | Times
   | Equals
   | LessThan
+  | GreaterThan (* new *)
 ;;
 
 type varid = string ;;
@@ -24,6 +25,7 @@ type varid = string ;;
 type expr =
   | Var of varid                         (* variables *)
   | Num of int                           (* integers *)
+  | Float of float (* new *)               
   | Bool of bool                         (* booleans *)
   | Unop of unop * expr                  (* unary operators *)
   | Binop of binop * expr * expr         (* binary operators *)
@@ -102,21 +104,21 @@ let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   let subbed = subst var_name repl in
   match exp with
   | Var v -> if v = var_name then repl else exp
-  | Num _ | Bool _ | Raise | Unassigned -> exp
+  | Num _ | Float _ | Bool _ | Raise | Unassigned -> exp
   | Unop (unop, expr1) -> Unop (unop, subbed expr1)                
   | Binop (binop, left_expr, right_expr) -> Binop (binop, subbed left_expr, subbed right_expr)     
   | Conditional (if_expr, then_expr, else_expr) -> 
     Conditional (subbed if_expr, subbed then_expr, subbed else_expr)
   | Fun (v, expr1) ->
     if v = var_name then exp
-    else if not (SS.mem v (free_vars repl)) then Fun(v, subbed expr1)
+    else if not (SS.mem v (free_vars repl)) then Fun (v, subbed expr1)
     else  
-      let z = new_varname () in Fun(z, subst (Var z) repl expr1)  (* ASK!!! TODO *)
+      let z = new_varname () in Fun (z, subst v (Var z) expr1)  (* ASK!!! TODO *)
   | Let (v, def_expr, body_expr) -> 
-    if v = var_name then Let(v, subbed def_expr, body_expr)
-    else if not (SS.mem v (free_vars repl)) then Let(v, subbed def_expr, subbed body_expr)
+    if v = var_name then Let (v, subbed def_expr, body_expr)
+    else if not (SS.mem v (free_vars repl)) then Let (v, subbed def_expr, subbed body_expr)
     else  
-      let z = new_varname () in Let(z, subbed body_expr, subst (Var z) repl expr1) 
+      let z = new_varname () in Let(z, subbed body_expr, subst v (Var z) expr1) 
   | Letrec (v, def_expr, body_expr) -> (* FIX!!! based on kelseys doc *)
       if v = var_name then exp
       else if SS.mem v (free_vars repl) then 
@@ -134,7 +136,8 @@ let rec exp_to_concrete_string (exp : expr) : string =
   match exp with
   | Var v -> v                     
   | Num n -> string_of_int n                  
-  | Bool b -> string_of_bool b     
+  | Bool b -> string_of_bool b    
+  | Float f -> string_of_float f 
   | Unop (unop, expr) -> "-" ^ (exp_to_concrete_string expr)               
   | Binop (binop, expr1, expr2) -> let b_string = 
       (match binop with
@@ -143,6 +146,7 @@ let rec exp_to_concrete_string (exp : expr) : string =
       | Times -> "*"
       | Equals -> "="
       | LessThan -> "<"
+      | GreaterThan -> ">"
       ) in
     (exp_to_concrete_string expr1) ^ b_string ^ (exp_to_concrete_string expr2)       
   | Conditional (expr1, expr2, expr3) -> "if " ^ (exp_to_concrete_string expr1) 
@@ -165,7 +169,8 @@ let rec exp_to_abstract_string (exp : expr) : string =
   match exp with
   | Var v -> "Var(" ^ v ^ ")"                    
   | Num n -> "Num(" ^ string_of_int n ^ ")"                 
-  | Bool b -> "Bool(" ^ (if b then "true" else "false") ^ ")"                
+  | Bool b -> "Bool(" ^ (if b then "true" else "false") ^ ")"     
+  | Float f -> "Float(" ^ string_of_float f ^ ")"           
   | Unop (unop, expr) -> "Unop(Neg(" ^ (exp_to_abstract_string expr) ^ "))"                
   | Binop (binop, expr1, expr2) -> let b_string = 
       (match binop with
@@ -174,6 +179,7 @@ let rec exp_to_abstract_string (exp : expr) : string =
       | Times -> "Times"
       | Equals -> "Equals"
       | LessThan -> "LessThan"
+      | GreaterThan -> "GreaterThan"
       ) in
     "Binop(" ^ b_string ^ ", " ^ (exp_to_abstract_string expr1) ^ ", " ^ 
     (exp_to_abstract_string expr2) ^ ")"     

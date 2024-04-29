@@ -133,7 +133,11 @@ let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr =
   | Minus, Num x1, Num x2 -> Num (x1 - x2)
   | Times, Num x1, Num x2 -> Num (x1 * x2)
   | Equals, Num x1, Num x2 -> Bool (x1 = x2) (* add case for bools!!!! *)
-  | Lessthan, Num x1, Num x2 -> Num (x1 + x2)
+  | Lessthan, Num x1, Num x2 -> Bool (x1 < x2) 
+  | Greaterthan, Num x1, Num x2 -> Bool (x1 > x2) 
+  | Equals, Bool x1, Bool x2 -> Bool (x1 = x2) (* add case for bools!!!! *)
+  | Lessthan, Bool x1, Bool x2 -> Bool (x1 < x2) 
+  | Greaterthan, Bool x1, Bool x2 -> Bool (x1 > x2) 
   | _ -> raise (EvalError "Invalid binop")
 
 let conditioneval (exp : Env.value) : bool = 
@@ -145,8 +149,8 @@ let conditioneval (exp : Env.value) : bool =
 
 let rec eval_s (exp : expr) (env : Env.env) : Env.value =
   match exp with
-  | Var _ -> raise (EvalError "Unbound variable") (* TO ASK!! TODO *)
-  | Num _ | Bool _ | Fun _ | Raise | Unassigned -> Env.Val exp
+  | Var _ -> raise (EvalError "Unbound variable")
+  | Num _ | Bool _ | Float _ | Fun _ | Raise | Unassigned -> Env.Val exp
   | Unop (unop, expr1) -> 
     let Env.Val expr2 = eval_s expr1 env in 
     match unop, expr2 with
@@ -164,7 +168,7 @@ let rec eval_s (exp : expr) (env : Env.env) : Env.value =
   | Letrec (v, expr1, expr2) -> (* TODOOOO !!!! *)
     let Env.Val val_d = eval_s def_expr env in
     eval_s (subst v val_d body_expr) env ???
-  | App (expr1, expr2) -> 
+  | App (expr1, expr2) -> (* TODOOOO !!!! *)
     let def, body = match expr1 with
     | Fun (def_expr, body_expr) -> def_expr, body_expr
     | _ -> raise (EvalError "Can't apply non function") in
@@ -179,10 +183,12 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
   | Var v -> Env.Val exp
   | Num n -> n
   | Bool b -> b
+  | Float f -> f
   | Unop (unop, expr1) -> 
     let Val expr2 = eval_d expr1 env in 
     match unop, expr2 with
     | Negate, Num x -> Env.Val (Num (-x))
+    | Negate, Float f -> Env.Val (Float (~-f))
     | _, _ -> raise (EvalError "Can't negate non-integers")
   | Binop (binop, left_expr, right_expr) -> 
     let Env.Val left = eval_d left_expr env in
@@ -192,8 +198,9 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
     if conditioneval if_expr then eval_d then_expr env else eval_d else_expr env
   | Fun (_v, _expr) -> Env.Val exp
   | Let (v, def_expr, body_expr) -> (* TODOOOO!!!! *)
-    let Env.Val left = eval_d left_expr env in
-    let Env.Val right = eval_d right_expr env in
+    let Env.Val val_d = eval_d left_expr env in
+    (* set x -> V_d and eval b at that env *)
+    ______?? 
     Env.Val (binopeval binop left right) 
   | Letrec (v, def_expr, body_expr) -> ??
   | App (expr1, expr2) ->
@@ -209,27 +216,29 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
    
-let eval_l (exp : expr) (env : Env.env) : Env.value =
+let rec eval_l (exp : expr) (env : Env.env) : Env.value =
   match exp with 
   | Var v -> Env.Val exp
   | Num n -> n
   | Bool b -> b
+  | Float f -> f
   | Unop (unop, expr1) -> 
-    (* let Val expr2 = eval_d expr1 env in 
+    let Val expr2 = eval_l expr1 env in 
     match unop, expr2 with
-    | Negate, Num x -> Env.Val (Num (-x))
-    | _, _ -> raise (EvalError "Can't negate non-integers") *)
+    | Negate, Num x -> Env.Val (Num (~-x))
+    | Negate, Float f -> Env.Val (Float (~-f))
+    | _, _ -> raise (EvalError "Can't negate non-integers")
   | Binop (binop, left_expr, right_expr) -> 
-    (* let Env.Val left = eval_d left_expr env in
-    let Env.Val right = eval_d right_expr env in
-    Env.Val (binopeval binop left right)  *)
+    let Env.Val left = eval_l left_expr env in
+    let Env.Val right = eval_l right_expr env in
+    Env.Val (binopeval binop left right) 
   | Conditional (if_expr, then_expr, else_expr) -> 
     (* if conditioneval if_expr then eval_d then_expr env else eval_d else_expr env *)
   | Fun (_v, _expr) -> Env.Val exp
   | Let (v, def_expr, body_expr) -> (* TODOOOO!!!! *)
-    (* let Env.Val left = eval_d left_expr env in
-    let Env.Val right = eval_d right_expr env in
-    Env.Val (binopeval binop left right)  *)
+    let Env.Val val_d = eval_l left_expr env in
+    let Env.Val right = eval_l right_expr env in
+    Env.Val (binopeval binop left right) 
   | Letrec (v, def_expr, body_expr) -> ??
   | App (expr1, expr2) ->
     (* let def, body = match expr1 with
