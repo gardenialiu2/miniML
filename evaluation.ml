@@ -171,46 +171,48 @@ let conditioneval (exp : Env.value) : bool =
 
 (* TODO: make an eval helper function for all the diff models *)
 let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
+  (* ev evals when env is same *)
   let rec ev (exp : expr) : Env.value = 
     match exp with
     | Var v ->
-      match md with
+      match m with
       | Sub -> raise (EvalError "Unbound variable")
       | Dyn | Lex -> 
         match lookup env v with
         | Val e -> Val e 
-        | Closure (e, env_new) -> eval_helper md e env_new
-    | Num _ | Bool _ | Float _ | Fun _ -> val_of exp
-    | Fun _ -> if md = Lex then close exp env else val_of exp
+        | Closure (e, env_new) -> eval_helper m e env_new
+    | Num _ | Bool _ | Float _ | Fun _ -> Val exp (* TODO dont really need val_of helper func *)
+    | Fun _ -> if m = Lex then close exp env else Val exp
     | Unop (unop, e) -> 
       match unop, ev e with
         | Negate, Val Num x -> Val Num (~-x)
         | Negate, Val Float x -> Val Float (~-.x)
         | _, _ -> raise (EvalError "Invalid Unop")
-    | Bionp (b, e1, e2) -> binopeval b (ev e1) (ev e2)
+    | Binop (b, e1, e2) -> Val binopeval b (ev e1) (ev e2)
     | Conditional (if_e, then_e, else_e) ->
       if conditioneval if_e then ev then_e else ev else_e
     | Let (v, e1, e2) ->
-      match md with
-      | Sub ->
-      | Dyn ->
-      | Lex -> 
-    | Letrec (v, e1, e2) ->
-      match md with
-      | Sub ->
+      match m with
+      | Sub -> ev (subst v (extract (ev e1)) e2)
+      (*TODO IS THIS RIGHT*)| Dyn | Lex -> eval_helper m e2 (extend env v (ref (ev e1)))
+    | Letrec (v, e1, e2) -> (* TODOOO *)
+      match m with
+      | Sub -> 
       | Dyn ->
       | Lex -> 
     | App (e1, e2) -> 
-      match md with
-      | Sub ->
+      match m with
+      | Sub ->  match ev e1 with
+                (* substitute val_q for x in e *)
+                | Val Fun (v, e) -> ev (subst v (extract (ev e2)) e)
+                | _ -> raise (EvalError "Can't apply non function")
       | Dyn ->
       | Lex -> 
     | Raise -> raise EvalError "Raise"
     | Unassigned -> raise EvalError "Unassigned"
 
 
-
-let rec eval_s (exp : expr) (env : Env.env) : Env.value =
+let rec eval_s (exp : expr) (env : Env.env) : Env.value = eval_helper Sub exp env
   match exp with
   | Var _ -> raise (EvalError "Unbound variable")
   | Num _ | Bool _ | Float _ | Fun _ | Raise | Unassigned -> Env.Val exp (* what to do about raise and unassigned TODOOOOO !!!! *)
@@ -242,7 +244,7 @@ let rec eval_s (exp : expr) (env : Env.env) : Env.value =
    
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
-let rec eval_d (exp : expr) (env : Env.env) : Env.value =
+let rec eval_d (exp : expr) (env : Env.env) : Env.value = eval_helper Dyn exp env
   match exp with 
   | Var v -> Env.Val exp
   | Num n -> Env.Val n
@@ -268,7 +270,6 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
     eval_d (subst v val_d body_expr) (extend env v val_d)
   | Letrec (v, def_expr, body_expr) -> (* TODO!!!! check this *)
     (* use env extend to map x to evaluated arg value *)
-    let rec extend (env : env) (varname : varid) (loc : value ref) : env =
       let Env.Val val_d = eval_d def_expr env in
       eval_d (subst v (eval_d (subst v (Letrec (v, val_d, Var v)) val_d))
       body_expr) (extend env v val_d)
@@ -285,7 +286,7 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
 (* TODOOOO *)
-let rec eval_l (exp : expr) (env : Env.env) : Env.value =
+let rec eval_l (exp : expr) (env : Env.env) : Env.value = eval_helper Lex exp env
   match exp with 
   | Var v -> Env.Val exp
   | Num n -> n
