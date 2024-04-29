@@ -100,6 +100,9 @@ let new_varname () : varid =
 (* subst var_name repl exp -- Return the expression `exp` with `repl`
    substituted for free occurrences of `var_name`, avoiding variable
    capture *)
+
+   (* TODO can only check if subst works using eval *)
+
 let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   let subbed = subst var_name repl in
   match exp with
@@ -119,7 +122,7 @@ let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
     else if not (SS.mem v (free_vars repl)) then Let (v, subbed def_expr, subbed body_expr)
     else  
       let z = new_varname () in Let(z, subbed body_expr, subst v (Var z) expr1) 
-  | Letrec (v, def_expr, body_expr) -> (* FIX!!! based on kelseys doc *)
+  | Letrec (v, def_expr, body_expr) -> 
       if v = var_name then exp
       else if SS.mem v (free_vars repl) then 
         let z = new_varname () in Letrec (z, subbed (subst v (Var z) def_expr),

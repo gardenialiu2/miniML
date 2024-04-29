@@ -73,15 +73,25 @@ module Env : ENV =
       Closure (exp, env)
 
     let lookup (env : env) (varname : varid) : value =
-      failwith "lookup not implemented"
+      try !(List.assoc varname env)
+      with 
+      | Not_found -> raise (EvalError ("Unbound variable " ^ varname))
 
-    let extend (env : env) (varname : varid) (loc : value ref) : env =
-      failwith "extend not implemented"
+    let rec extend (env : env) (varname : varid) (loc : value ref) : env =
+      match env with 
+      | [] -> [(varname, loc)]
+      | (varid, ref) :: tl ->
+        if varid = varname then (varid, loc) :: tl 
+        else (varid, ref) :: (extend tl varname loc)
 
     let value_to_string ?(printenvp : bool = true) (v : value) : string =
-      failwith "value_to_string not implemented"
+      match v with
+      | Val exp -> exp_to_concrete_string exp
+      | Closure (exp, env) -> if printenvp then "Closure(" ^ exp_to_concrete_string exp ^
+        ", " ^ env_to_string env ^ ")"
+      else exp_to_concrete_string exp
 
-    let env_to_string (env : env) : string =
+    let rec env_to_string (env : env) : string =
       match env with
       | [] -> "[]"
       | (v, r) :: tl -> 
@@ -118,26 +128,37 @@ open Env ;;
 
 let eval_t (exp : expr) (_env : Env.env) : Env.value =
   (* coerce the expr, unchanged, into a value *)
-  Env.Val exp ;;
+  Val exp ;;
 
-  (* extract TODO: Env.val (expr) => expr.
-     Env.val can be __??? *)
-let extract (value : Env.value) : expr =
-  match value with
+type model = 
+  | Sub 
+  | Dyn 
+  | Lex
+
+(* extracts expression from a value *)
+let extract (v : Env.value) : expr =
+  match v with
   | Env.Val x -> x
-(* The SUBSTITUTION MODEL evaluator -- to be completed *)
+  | _ -> raise (EvalError "Extract type not supported")
 
+(* The SUBSTITUTION MODEL evaluator -- to be completed *)
 let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr = 
-  match b, left_expr, right_expr with
+  match b, extract left_expr, extract right_expr with
   | Plus, Num x1, Num x2 -> Num (x1 + x2)
   | Minus, Num x1, Num x2 -> Num (x1 - x2)
   | Times, Num x1, Num x2 -> Num (x1 * x2)
-  | Equals, Num x1, Num x2 -> Bool (x1 = x2) (* add case for bools!!!! *)
+  | Equals, Num x1, Num x2 -> Bool (x1 = x2) 
   | Lessthan, Num x1, Num x2 -> Bool (x1 < x2) 
   | Greaterthan, Num x1, Num x2 -> Bool (x1 > x2) 
-  | Equals, Bool x1, Bool x2 -> Bool (x1 = x2) (* add case for bools!!!! *)
+  | Equals, Bool x1, Bool x2 -> Bool (x1 = x2) 
   | Lessthan, Bool x1, Bool x2 -> Bool (x1 < x2) 
   | Greaterthan, Bool x1, Bool x2 -> Bool (x1 > x2) 
+  | Plus, Float x1, Float x2 -> Num (x1 + x2)
+  | Minus, Float x1, Float x2 -> Num (x1 - x2)
+  | Times, Float x1, Float x2 -> Num (x1 * x2)
+  | Equals, Float x1, Float x2 -> Bool (x1 = x2) 
+  | Lessthan, Float x1, Float x2 -> Bool (x1 < x2) 
+  | Greaterthan, Float x1, Float x2 -> Bool (x1 > x2) 
   | _ -> raise (EvalError "Invalid binop")
 
 let conditioneval (exp : Env.value) : bool = 
@@ -147,10 +168,12 @@ let conditioneval (exp : Env.value) : bool =
             | Bool b -> b 
             | _ -> raise (Invalid_arg "Not boolean")
 
+(* TODO: make an eval helper function for all the diff models *)
+
 let rec eval_s (exp : expr) (env : Env.env) : Env.value =
   match exp with
   | Var _ -> raise (EvalError "Unbound variable")
-  | Num _ | Bool _ | Float _ | Fun _ | Raise | Unassigned -> Env.Val exp
+  | Num _ | Bool _ | Float _ | Fun _ | Raise | Unassigned -> Env.Val exp (* what to do about raise and unassigned TODOOOOO !!!! *)
   | Unop (unop, expr1) -> 
     let Env.Val expr2 = eval_s expr1 env in 
     match unop, expr2 with
@@ -165,26 +188,26 @@ let rec eval_s (exp : expr) (env : Env.env) : Env.value =
   | Let (v, def_expr, body_expr) -> 
     let Env.Val val_d = eval_s def_expr env in
     eval_s (subst v val_d body_expr) env
-  | Letrec (v, expr1, expr2) -> 
+  | Letrec (v, def_expr, body_expr) -> (* TODO!!! check this!! *)
     let Env.Val val_d = eval_s def_expr env in
-    eval_s (subst v (eval_s (subst v (Letrec (v, val_d, Var v))) val_d) body_expr) env ???
+    eval_s (subst v (eval_s (subst v (Letrec (v, val_d, Var v)) val_d))
+     body_expr) env
   | App (expr1, expr2) -> 
      match expr1 with
     | Fun (def_expr, body_expr) -> 
       let Env.Val val_q = eval_s expr2 env in
       eval_s (subst def_expr val_q) body_expr env
-    | _ -> raise (EvalError "Can't apply non function") in
+    | _ -> raise (EvalError "Can't apply non function")
     
    
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
-   
 let rec eval_d (exp : expr) (env : Env.env) : Env.value =
   match exp with 
   | Var v -> Env.Val exp
-  | Num n -> n
-  | Bool b -> b
-  | Float f -> f
+  | Num n -> Env.Val n
+  | Bool b -> Env.Val b
+  | Float f -> Env.Val f
   | Unop (unop, expr1) -> 
     let Val expr2 = eval_d expr1 env in 
     match unop, expr2 with
@@ -198,25 +221,30 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
   | Conditional (if_expr, then_expr, else_expr) -> 
     if conditioneval if_expr then eval_d then_expr env else eval_d else_expr env
   | Fun (_v, _expr) -> Env.Val exp
-  | Let (v, def_expr, body_expr) -> (* TODOOOO!!!! *)
+  | Let (v, def_expr, body_expr) -> (* TODOOOO!!!! check this *)
+  (* use env extend to point v to val_d. eval the body with val_d subbed in. use env look up *)
     let Env.Val val_d = eval_d left_expr env in
     (* set x -> V_d and eval b at that env *)
-    ______?? 
-    Env.Val (binopeval binop left right) 
-  | Letrec (v, def_expr, body_expr) -> ??
+    eval_d (subst v val_d body_expr) (extend env v val_d)
+  | Letrec (v, def_expr, body_expr) -> (* TODO!!!! check this *)
+    (* use env extend to map x to evaluated arg value *)
+    let rec extend (env : env) (varname : varid) (loc : value ref) : env =
+      let Env.Val val_d = eval_d def_expr env in
+      eval_d (subst v (eval_d (subst v (Letrec (v, val_d, Var v)) val_d))
+      body_expr) (extend env v val_d)
   | App (expr1, expr2) ->
     let def, body = match expr1 with
     | Fun (v, body_expr) -> v, body_expr
     | _ -> raise (EvalError "Can't apply non function") in
     let Env.Val val_q = eval_d expr2 in
-    eval_d (subst def val_q body) env (* TODOOOO. dont use subst. j update environment *)
+    eval_d (subst def val_q body) env (* TODOOOO. dont use subst? j update environment *)
   | Raise -> Env.Val Raise
   | Unassigned -> Env.Val Unassigned 
   
        
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
-   
+(* TODOOOO *)
 let rec eval_l (exp : expr) (env : Env.env) : Env.value =
   match exp with 
   | Var v -> Env.Val exp
@@ -233,22 +261,22 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
     let Env.Val left = eval_l left_expr env in
     let Env.Val right = eval_l right_expr env in
     Env.Val (binopeval binop left right) 
-  | Conditional (if_expr, then_expr, else_expr) -> 
+  | Conditional (if_expr, then_expr, else_expr) -> (* TODOOO *) exp
     (* if conditioneval if_expr then eval_d then_expr env else eval_d else_expr env *)
   | Fun (_v, _expr) -> Env.Val exp
   | Let (v, def_expr, body_expr) -> (* TODOOOO!!!! *)
     let Env.Val val_d = eval_l left_expr env in
     let Env.Val right = eval_l right_expr env in
     Env.Val (binopeval binop left right) 
-  | Letrec (v, def_expr, body_expr) -> ??
-  | App (expr1, expr2) ->
+  | Letrec (v, def_expr, body_expr) -> exp (* TODOO*)
+  | App (expr1, expr2) -> exp (* TODOOO!!! *)
     (* let def, body = match expr1 with
     | Fun (v, body_expr) -> v, body_expr
     | _ -> raise (EvalError "Can't apply non function") in
     let Env.Val val_q = eval_d expr2 in
     eval_d (subst def val_q body) env TODOOOO *)
   | Raise -> Env.Val Raise
-  | Unassigned -> Env.Val Unassigned 
+  | Unassigned -> Env.Val Unassigned  
 
 (* The EXTENDED evaluator -- if you want, you can provide your
    extension as a separate evaluator, or if it is type- and
