@@ -84,14 +84,14 @@ module Env : ENV =
         if varid = varname then (varid, loc) :: tl 
         else (varid, ref) :: (extend tl varname loc)
 
-    let value_to_string ?(printenvp : bool = true) (v : value) : string =
+    let rec value_to_string ?(printenvp : bool = true) (v : value) : string =
       match v with
       | Val exp -> exp_to_concrete_string exp
       | Closure (exp, env) -> if printenvp then "Closure(" ^ exp_to_concrete_string exp ^
         ", " ^ env_to_string env ^ ")"
       else exp_to_concrete_string exp
 
-    let rec env_to_string (env : env) : string =
+    and env_to_string (env : env) : string =
       match env with
       | [] -> "[]"
       | (v, r) :: tl -> 
@@ -139,14 +139,14 @@ type model =
 let extract (v : Env.value) : expr =
   match v with
   | Val x -> x
-  | _ -> raise (EvalError "Extract type not supported")
+  | _ -> raise (EvalError "Extract type not supported") ;;
 
 let val_of (exp : expr) : Env.value =
-  Val exp
+  Val exp ;;
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
 let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr = 
-  Val (match b, extract left_expr, extract right_expr with
+  let temp = match b, extract left_expr, extract right_expr with
   | Plus, Num x1, Num x2 -> Num (x1 + x2)
   | Minus, Num x1, Num x2 -> Num (x1 - x2)
   | Times, Num x1, Num x2 -> Num (x1 * x2)
@@ -162,12 +162,13 @@ let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr =
   | Equals, Float x1, Float x2 -> Bool (x1 = x2) 
   | Lessthan, Float x1, Float x2 -> Bool (x1 < x2) 
   | Greaterthan, Float x1, Float x2 -> Bool (x1 > x2) 
-  | _ -> raise (EvalError "Invalid binop"))
+  | _ -> raise (EvalError "Invalid binop")
+in Val temp ;;
 
 let conditioneval (exp : Env.value) : bool = 
   match exp with
   | Val Bool b -> b 
-  | _ -> raise (Invalid_arg "Invalid conditional")
+  | _ -> raise (Invalid_arg "Invalid conditional") ;;
 
 (* TODO: make an eval helper function for all the diff models *)
 let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
@@ -175,45 +176,76 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
   let rec ev (exp : expr) : Env.value = 
     match exp with
     | Var v ->
-      match m with
+      (match m with
       | Sub -> raise (EvalError "Unbound variable")
       | Dyn | Lex -> 
-        match lookup env v with
+        (match lookup env v with
         | Val e -> Val e 
-        | Closure (e, env_new) -> eval_helper m e env_new
-    | Num _ | Bool _ | Float _ | Fun _ -> Val exp (* TODO dont really need val_of helper func *)
+        | Closure (e, env_new) -> eval_helper m e env_new))
+    | Num _ | Bool _ | Float _ -> Val exp (* TODO dont really need val_of helper func *)
     | Fun _ -> if m = Lex then close exp env else Val exp
     | Unop (unop, e) -> 
-      match unop, ev e with
+      (match unop, ev e with
         | Negate, Val Num x -> Val Num (~-x)
         | Negate, Val Float x -> Val Float (~-.x)
-        | _, _ -> raise (EvalError "Invalid Unop")
-    | Binop (b, e1, e2) -> Val binopeval b (ev e1) (ev e2)
+        | _, _ -> raise (EvalError "Invalid Unop"))
+    | Binop (b, e1, e2) -> Val (binopeval b (ev e1) (ev e2))
     | Conditional (if_e, then_e, else_e) ->
       if conditioneval if_e then ev then_e else ev else_e
     | Let (v, e1, e2) ->
       match m with
       | Sub -> ev (subst v (extract (ev e1)) e2)
-      (*TODO IS THIS RIGHT*)| Dyn | Lex -> eval_helper m e2 (extend env v (ref (ev e1)))
-    | Letrec (v, e1, e2) -> (* TODOOO *)
+      (* TODO IS THIS RIGHT!! *)
+      | Dyn | Lex -> eval_helper m e2 (extend env v (ref (ev e1)))
+    | Letrec (v, e1, e2) -> (* TODOOO IS THIS RIGHT *)
       match m with
-      | Sub -> 
-      | Dyn ->
+      | Sub -> let val_d = extract (ev e1) in 
+        ev_helper m (subst v (subst v (Letrec (v, val_d, Var v)) val_d) e2) env
+      | Dyn -> (* TODO: IDK IF THIS RIGHT *) eval_helper m e2 (extend env v (ref (ev e1)))
       | Lex -> 
+        (* TODO: IDK IF THIS IS RIGHT same as dyn but use references. eval_l vs eval_d. *)
+        let x = ref (Val Unassigned)
+                in let env_new = extend env v x
+                in let vd = eval_helper Lex e1 env_new
+                in (match vd with
+                    | Val Var _ -> raise (EvalError "Letrec unbound variable")
+                    | _ -> x := vd; eval_helper Lex e2 env_new)
     | App (e1, e2) -> 
       match m with
-      | Sub ->  match ev e1 with
+      | Sub -> (match ev e1 with
                 (* substitute val_q for x in e *)
                 | Val Fun (v, e) -> ev (subst v (extract (ev e2)) e)
-                | _ -> raise (EvalError "Can't apply non function")
-      | Dyn ->
-      | Lex -> 
-    | Raise -> raise EvalError "Raise"
-    | Unassigned -> raise EvalError "Unassigned"
+                | _ -> raise (EvalError "Can't apply non-function"))
+      | Dyn | Lex -> (* save environment w closures *) (* {} extend *)
+        (match ev e1 with
+          | Val Fun (v, e) -> 
+            if m = Dyn then
+              let val_q = ev e2 
+              in let ext = extend env v (ref (val_q))
+              in eval_helper m e ext
+            else raise (EvalError "Invalid application input")
+          (* has to be lexical *)
+          | Closure (Fun (v, e), env_old) -> 
+                          let val_q = ev e2 
+                          in let ext = extend env_old v (ref val_q)
+                          in eval_helper m e ext
+          | _ -> raise (EvalError "Invalid application"))
+    | Raise -> raise (EvalError "Raise")
+    | Unassigned -> raise (EvalError "Unassigned")
+  in ev exp ;;
+  
 
 
-let rec eval_s (exp : expr) (env : Env.env) : Env.value = eval_helper Sub exp env
-  match exp with
+
+
+
+
+
+
+    (* let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value = *)
+let rec eval_s (exp : expr) (env : Env.env) : Env.value = 
+  eval_helper Sub exp env ;;
+  (* match exp with
   | Var _ -> raise (EvalError "Unbound variable")
   | Num _ | Bool _ | Float _ | Fun _ | Raise | Unassigned -> Env.Val exp (* what to do about raise and unassigned TODOOOOO !!!! *)
   | Unop (unop, expr1) -> 
@@ -240,12 +272,13 @@ let rec eval_s (exp : expr) (env : Env.env) : Env.value = eval_helper Sub exp en
       let Env.Val val_q = eval_s expr2 env in
       eval_s (subst def_expr val_q) body_expr env
     | _ -> raise (EvalError "Can't apply non function")
-    
+     *)
    
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
-let rec eval_d (exp : expr) (env : Env.env) : Env.value = eval_helper Dyn exp env
-  match exp with 
+let rec eval_d (exp : expr) (env : Env.env) : Env.value = 
+  eval_helper Dyn exp env
+  (* match exp with 
   | Var v -> Env.Val exp
   | Num n -> Env.Val n
   | Bool b -> Env.Val b
@@ -280,14 +313,15 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value = eval_helper Dyn exp en
     let Env.Val val_q = eval_d expr2 in
     eval_d (subst def val_q body) env (* TODOOOO. dont use subst? j update environment *)
   | Raise -> Env.Val Raise
-  | Unassigned -> Env.Val Unassigned 
+  | Unassigned -> Env.Val Unassigned  *)
   
        
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
 (* TODOOOO *)
-let rec eval_l (exp : expr) (env : Env.env) : Env.value = eval_helper Lex exp env
-  match exp with 
+let rec eval_l (exp : expr) (env : Env.env) : Env.value = 
+  eval_helper Lex exp env
+  (* match exp with 
   | Var v -> Env.Val exp
   | Num n -> n
   | Bool b -> b
@@ -317,7 +351,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value = eval_helper Lex exp en
     let Env.Val val_q = eval_d expr2 in
     eval_d (subst def val_q body) env TODOOOO *)
   | Raise -> Env.Val Raise
-  | Unassigned -> Env.Val Unassigned  
+  | Unassigned -> Env.Val Unassigned   *)
 
 (* The EXTENDED evaluator -- if you want, you can provide your
    extension as a separate evaluator, or if it is type- and
