@@ -141,7 +141,7 @@ let extract (v : Env.value) : expr =
   | Val x -> x
   | _ -> raise (EvalError "Extract type not supported")
 
-let expr_of (exp : expr) : Env.value =
+let val_of (exp : expr) : Env.value =
   Val exp
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
@@ -166,12 +166,49 @@ let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr =
 
 let conditioneval (exp : Env.value) : bool = 
   match exp with
-  | Closure (_, _) -> raise (Invalid_arg "Invalid closure")
-  | Val v -> match v with
-            | Bool b -> b 
-            | _ -> raise (Invalid_arg "Not boolean")
+  | Val Bool b -> b 
+  | _ -> raise (Invalid_arg "Invalid conditional")
 
 (* TODO: make an eval helper function for all the diff models *)
+let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
+  let rec ev (exp : expr) : Env.value = 
+    match exp with
+    | Var v ->
+      match md with
+      | Sub -> raise (EvalError "Unbound variable")
+      | Dyn | Lex -> 
+        match lookup env v with
+        | Val e -> Val e 
+        | Closure (e, env_new) -> eval_helper md e env_new
+    | Num _ | Bool _ | Float _ | Fun _ -> val_of exp
+    | Fun _ -> if md = Lex then close exp env else val_of exp
+    | Unop (unop, e) -> 
+      match unop, ev e with
+        | Negate, Val Num x -> Val Num (~-x)
+        | Negate, Val Float x -> Val Float (~-.x)
+        | _, _ -> raise (EvalError "Invalid Unop")
+    | Bionp (b, e1, e2) -> binopeval b (ev e1) (ev e2)
+    | Conditional (if_e, then_e, else_e) ->
+      if conditioneval if_e then ev then_e else ev else_e
+    | Let (v, e1, e2) ->
+      match md with
+      | Sub ->
+      | Dyn ->
+      | Lex -> 
+    | Letrec (v, e1, e2) ->
+      match md with
+      | Sub ->
+      | Dyn ->
+      | Lex -> 
+    | App (e1, e2) -> 
+      match md with
+      | Sub ->
+      | Dyn ->
+      | Lex -> 
+    | Raise -> raise EvalError "Raise"
+    | Unassigned -> raise EvalError "Unassigned"
+
+
 
 let rec eval_s (exp : expr) (env : Env.env) : Env.value =
   match exp with
