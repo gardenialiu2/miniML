@@ -122,9 +122,9 @@ let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   | Letrec (v, def_expr, body_expr) -> (* FIX!!! based on kelseys doc *)
       if v = var_name then exp
       else if SS.mem v (free_vars repl) then 
-        let z = new_varname () in Letrec (z, subbed (subst var_name (Var z) def_exp),
-      (subbed (subst v (Var z)) exp))
-      else Letrec (v, sub)
+        let z = new_varname () in Letrec (z, subbed (subst v (Var z) def_expr),
+      (subbed (subst v (Var z)) body_expr))
+      else Letrec (v, subbed def_expr, subbed body_expr)
   | App (expr1, expr2) -> App (subbed expr1, subbed expr2)
  
 (*......................................................................

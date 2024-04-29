@@ -165,15 +165,16 @@ let rec eval_s (exp : expr) (env : Env.env) : Env.value =
   | Let (v, def_expr, body_expr) -> 
     let Env.Val val_d = eval_s def_expr env in
     eval_s (subst v val_d body_expr) env
-  | Letrec (v, expr1, expr2) -> (* TODOOOO !!!! *)
+  | Letrec (v, expr1, expr2) -> 
     let Env.Val val_d = eval_s def_expr env in
-    eval_s (subst v val_d body_expr) env ???
-  | App (expr1, expr2) -> (* TODOOOO !!!! *)
-    let def, body = match expr1 with
-    | Fun (def_expr, body_expr) -> def_expr, body_expr
+    eval_s (subst v (eval_s (subst v (Letrec (v, val_d, Var v))) val_d) body_expr) env ???
+  | App (expr1, expr2) -> 
+     match expr1 with
+    | Fun (def_expr, body_expr) -> 
+      let Env.Val val_q = eval_s expr2 env in
+      eval_s (subst def_expr val_q) body_expr env
     | _ -> raise (EvalError "Can't apply non function") in
-    let Env.Val val_q = eval_s expr2 in
-    eval_s (subst def val_q body) env (* TODOOOO *)
+    
    
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
