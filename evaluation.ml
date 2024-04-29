@@ -138,12 +138,15 @@ type model =
 (* extracts expression from a value *)
 let extract (v : Env.value) : expr =
   match v with
-  | Env.Val x -> x
+  | Val x -> x
   | _ -> raise (EvalError "Extract type not supported")
+
+let expr_of (exp : expr) : Env.value =
+  Val exp
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
 let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr = 
-  match b, extract left_expr, extract right_expr with
+  Val (match b, extract left_expr, extract right_expr with
   | Plus, Num x1, Num x2 -> Num (x1 + x2)
   | Minus, Num x1, Num x2 -> Num (x1 - x2)
   | Times, Num x1, Num x2 -> Num (x1 * x2)
@@ -159,7 +162,7 @@ let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr =
   | Equals, Float x1, Float x2 -> Bool (x1 = x2) 
   | Lessthan, Float x1, Float x2 -> Bool (x1 < x2) 
   | Greaterthan, Float x1, Float x2 -> Bool (x1 > x2) 
-  | _ -> raise (EvalError "Invalid binop")
+  | _ -> raise (EvalError "Invalid binop"))
 
 let conditioneval (exp : Env.value) : bool = 
   match exp with
