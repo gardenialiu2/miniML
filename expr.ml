@@ -105,23 +105,24 @@ let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   | Num _ | Bool _ | Raise | Unassigned -> exp
   | Unop (unop, expr1) -> Unop (unop, subbed expr1)                
   | Binop (binop, left_expr, right_expr) -> Binop (binop, subbed left_expr, subbed right_expr)     
-  | Conditional (if_expr, then_expr, else_expr) -> Conditional (subbed if_expr, subbed then_expr, subbed else_expr)
+  | Conditional (if_expr, then_expr, else_expr) -> 
+    Conditional (subbed if_expr, subbed then_expr, subbed else_expr)
   | Fun (v, expr1) ->
     if v = var_name then exp
     else if not (SS.mem v (free_vars repl)) then Fun(v, subbed expr1)
     else  
-      let z = new_varname () in Fun(z, subst z repl expr1)  (* ASK!!! TODO *)
+      let z = new_varname () in Fun(z, subst (Var z) repl expr1)  (* ASK!!! TODO *)
   | Let (v, def_expr, body_expr) -> 
     if v = var_name then Let(v, subbed def_expr, body_expr)
     else if not (SS.mem v (free_vars repl)) then Let(v, subbed def_expr, subbed body_expr)
     else  
-      let z = new_varname () in Let(z, subst z repl expr1, subbed body_expr) 
-  | Letrec (v, def_expr, body_expr) -> 
+      let z = new_varname () in Let(z, subbed body_expr, subst (Var z) repl expr1) 
+  | Letrec (v, def_expr, body_expr) -> (* FIX!!! based on kelseys doc *)
       if v = var_name then exp
       else if SS.mem v (free_vars repl) then 
         let z = new_varname () in Letrec (z, subbed (subst var_name (Var z) def_exp),
       (subbed (subst v (Var z)) exp))
-  else Letrec (v, sub)
+      else Letrec (v, sub)
   | App (expr1, expr2) -> App (subbed expr1, subbed expr2)
  
 (*......................................................................
