@@ -19,6 +19,7 @@ type binop =
   | Times
   | Equals
   | LessThan
+  | GreaterThan
 ;;
 
 (* Variable identifers *)
@@ -29,6 +30,7 @@ type expr =
   | Var of varid                         (* variables *)
   | Num of int                           (* integers *)
   | Bool of bool                         (* booleans *)
+  | Float of float
   | Unop of unop * expr                  (* unary operators *)
   | Binop of binop * expr * expr         (* binary operators *)
   | Conditional of expr * expr * expr    (* if then else *)

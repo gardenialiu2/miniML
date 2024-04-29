@@ -146,29 +146,34 @@ let val_of (exp : expr) : Env.value =
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
 let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr = 
-  let temp = match b, extract left_expr, extract right_expr with
+  match b, left_expr, right_expr with
   | Plus, Num x1, Num x2 -> Num (x1 + x2)
   | Minus, Num x1, Num x2 -> Num (x1 - x2)
   | Times, Num x1, Num x2 -> Num (x1 * x2)
   | Equals, Num x1, Num x2 -> Bool (x1 = x2) 
-  | Lessthan, Num x1, Num x2 -> Bool (x1 < x2) 
-  | Greaterthan, Num x1, Num x2 -> Bool (x1 > x2) 
+  | LessThan, Num x1, Num x2 -> Bool (x1 < x2) 
+  | GreaterThan, Num x1, Num x2 -> Bool (x1 > x2) 
   | Equals, Bool x1, Bool x2 -> Bool (x1 = x2) 
-  | Lessthan, Bool x1, Bool x2 -> Bool (x1 < x2) 
-  | Greaterthan, Bool x1, Bool x2 -> Bool (x1 > x2) 
-  | Plus, Float x1, Float x2 -> Num (x1 + x2)
-  | Minus, Float x1, Float x2 -> Num (x1 - x2)
-  | Times, Float x1, Float x2 -> Num (x1 * x2)
+  | LessThan, Bool x1, Bool x2 -> Bool (x1 < x2) 
+  | GreaterThan, Bool x1, Bool x2 -> Bool (x1 > x2) 
+  | Plus, Float x1, Float x2 -> Float (x1 +. x2)
+  | Minus, Float x1, Float x2 -> Float (x1 -. x2)
+  | Times, Float x1, Float x2 -> Float (x1 *. x2)
   | Equals, Float x1, Float x2 -> Bool (x1 = x2) 
-  | Lessthan, Float x1, Float x2 -> Bool (x1 < x2) 
-  | Greaterthan, Float x1, Float x2 -> Bool (x1 > x2) 
-  | _ -> raise (EvalError "Invalid binop")
-in Val temp ;;
+  | LessThan, Float x1, Float x2 -> Bool (x1 < x2) 
+  | GreaterThan, Float x1, Float x2 -> Bool (x1 > x2) 
+  | _ -> raise (EvalError "Invalid binop") ;;
 
-let conditioneval (exp : Env.value) : bool = 
+let unopeval (u : unop) (exp : expr) : expr = 
+  match u, exp with
+        | Negate, Num x -> Num (~-x)
+        | Negate, Float x -> Float (~-.x)
+        | _, _ -> raise (EvalError "Invalid Unop")
+
+let conditioneval (exp : expr) : bool = 
   match exp with
-  | Val Bool b -> b 
-  | _ -> raise (Invalid_arg "Invalid conditional") ;;
+  | Bool b -> b 
+  | _ -> raise (invalid_arg "Invalid conditional") ;;
 
 (* TODO: make an eval helper function for all the diff models *)
 let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
@@ -185,33 +190,30 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
     | Num _ | Bool _ | Float _ -> Val exp (* TODO dont really need val_of helper func *)
     | Fun _ -> if m = Lex then close exp env else Val exp
     | Unop (unop, e) -> 
-      (match unop, ev e with
-        | Negate, Val Num x -> Val Num (~-x)
-        | Negate, Val Float x -> Val Float (~-.x)
-        | _, _ -> raise (EvalError "Invalid Unop"))
-    | Binop (b, e1, e2) -> Val (binopeval b (ev e1) (ev e2))
+      Val (unopeval unop e)
+    | Binop (b, e1, e2) -> Val (binopeval b (extract (ev e1)) (extract (ev e2)))
     | Conditional (if_e, then_e, else_e) ->
       if conditioneval if_e then ev then_e else ev else_e
     | Let (v, e1, e2) ->
-      match m with
+      (match m with
       | Sub -> ev (subst v (extract (ev e1)) e2)
       (* TODO IS THIS RIGHT!! *)
-      | Dyn | Lex -> eval_helper m e2 (extend env v (ref (ev e1)))
+      | Dyn | Lex -> eval_helper m e2 (extend env v (ref (ev e1))))
     | Letrec (v, e1, e2) -> (* TODOOO IS THIS RIGHT *)
-      match m with
+      (match m with
       | Sub -> let val_d = extract (ev e1) in 
-        ev_helper m (subst v (subst v (Letrec (v, val_d, Var v)) val_d) e2) env
+        eval_helper m (subst v (subst v (Letrec (v, val_d, Var v)) val_d) e2) env
       | Dyn -> (* TODO: IDK IF THIS RIGHT *) eval_helper m e2 (extend env v (ref (ev e1)))
       | Lex -> 
         (* TODO: IDK IF THIS IS RIGHT same as dyn but use references. eval_l vs eval_d. *)
         let x = ref (Val Unassigned)
-                in let env_new = extend env v x
-                in let vd = eval_helper Lex e1 env_new
-                in (match vd with
-                    | Val Var _ -> raise (EvalError "Letrec unbound variable")
-                    | _ -> x := vd; eval_helper Lex e2 env_new)
+        in let env_new = extend env v x
+        in let vd = eval_helper Lex e1 env_new
+        in (match vd with
+           | Val Var _ -> raise (EvalError "Letrec unbound variable")
+           | _ -> x := vd; eval_helper Lex e2 env_new))
     | App (e1, e2) -> 
-      match m with
+      (match m with
       | Sub -> (match ev e1 with
                 (* substitute val_q for x in e *)
                 | Val Fun (v, e) -> ev (subst v (extract (ev e2)) e)
@@ -229,7 +231,7 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
                           let val_q = ev e2 
                           in let ext = extend env_old v (ref val_q)
                           in eval_helper m e ext
-          | _ -> raise (EvalError "Invalid application"))
+          | _ -> raise (EvalError "Invalid application")))
     | Raise -> raise (EvalError "Raise")
     | Unassigned -> raise (EvalError "Unassigned")
   in ev exp ;;
@@ -243,7 +245,7 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
 
 
     (* let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value = *)
-let rec eval_s (exp : expr) (env : Env.env) : Env.value = 
+let eval_s (exp : expr) (env : Env.env) : Env.value = 
   eval_helper Sub exp env ;;
   (* match exp with
   | Var _ -> raise (EvalError "Unbound variable")
@@ -276,7 +278,7 @@ let rec eval_s (exp : expr) (env : Env.env) : Env.value =
    
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
-let rec eval_d (exp : expr) (env : Env.env) : Env.value = 
+let eval_d (exp : expr) (env : Env.env) : Env.value = 
   eval_helper Dyn exp env
   (* match exp with 
   | Var v -> Env.Val exp
@@ -319,7 +321,7 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
 (* TODOOOO *)
-let rec eval_l (exp : expr) (env : Env.env) : Env.value = 
+let eval_l (exp : expr) (env : Env.env) : Env.value = 
   eval_helper Lex exp env
   (* match exp with 
   | Var v -> Env.Val exp
