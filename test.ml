@@ -36,11 +36,11 @@ let exp_to_abstract_string_test () =
           = "Fun(x, Binop(Times, Var(x), Num(2)))") 
             "abstract string fun binop";
   unit_test (exp_to_abstract_string (Let("x", Binop (Times, Num 1, Num 2), 
-            Binop (Plus, Num 1, Num 2))) = "Let(x, Binop(Times, Num(1), Num(2)), 
-            Binop(Plus, Num(1), Num(2)))") "abstract string let";
+            Binop (Plus, Num 1, Num 2))) = "Let(x, Binop(Times, Num(1), \
+            Num(2)), Binop(Plus, Num(1), Num(2)))") "abstract string let";
   unit_test (exp_to_abstract_string (Letrec("x", Binop (Times, Var "x", Num 2), 
             Binop(Plus, Num 1, Num 2)))
-          = "Letrec(x, Binop(Times, Var(x), Num(2)), 
+          = "Letrec(x, Binop(Times, Var(x), Num(2)), \
             Binop(Plus, Num(1), Num(2)))") "abstract string letrec";
   unit_test (exp_to_abstract_string (App (Fun("x", 
             Binop (Times, Var "x", Num 2)), Num 2)) = "App(Fun(x, 
@@ -79,27 +79,29 @@ let exp_to_concrete_string_test () =
   unit_test (exp_to_concrete_string (Let("x", Binop (Times, Num 1, Num 2), 
           Binop (Plus, Num 3, Num 4))) = "let x = 1 * 2 in (3 + 4)") 
           "concrete string let";
-          unit_test (exp_to_concrete_string (Letrec ("x", Binop (Times, Var "x", Num 1), Binop (Plus,
-                                                                    Num 2,
-                                                                    Num 3)))
+  unit_test (exp_to_concrete_string (Letrec ("x", Binop (Times, Var "x",
+          Num 1), Binop (Plus, Num 2, Num 3)))
           = "let rec x = x * 1 in (2 + 3)") "concrete string let rec";
-          unit_test (exp_to_concrete_string (App (Fun ("x", Binop (Times, Var "x", Num 2)), Num 3))
+  unit_test (exp_to_concrete_string (App (Fun ("x", Binop 
+          (Times, Var "x", Num 2)), Num 3))
           = "(fun x -> x * 2) (3)") "concrete string app";
-          unit_test (exp_to_concrete_string Raise = "Raise") "concrete string raise";
-          unit_test (exp_to_concrete_string Unassigned = "Unassigned") "concrete string unassigned";
+  unit_test (exp_to_concrete_string Raise = "Raise") 
+          "concrete string raise";
+  unit_test (exp_to_concrete_string Unassigned = "Unassigned") 
+          "concrete string unassigned";
 ;;
 
 let subst_tests () =
-  unit_test ((subst "x" (str_to_exp "1;;") (str_to_exp "~- 2 + 1;;")) = (str_to_exp "~- 2 + 1;;")) 
-   "subst none";
-  unit_test ((subst "x" (str_to_exp "1;;") (str_to_exp "~- 2 + x;;")) = (str_to_exp "~- 2 + 1;;")) 
-   "subst var once";
-  unit_test ((subst "x" (str_to_exp "1;;") (str_to_exp "if x = 1 then y + x else z;;"))
-           = (str_to_exp "if 1 = 1 then y + 1 else z;;"))
-   "subst conditional";
+  unit_test ((subst "x" (str_to_exp "1;;") (str_to_exp "~- 2 + 1;;")) = 
+            (str_to_exp "~- 2 + 1;;")) "subst none";
+  unit_test ((subst "x" (str_to_exp "1;;") (str_to_exp "~- 2 + x;;")) = 
+            (str_to_exp "~- 2 + 1;;")) "subst var once";
+  unit_test ((subst "x" (str_to_exp "1;;") (str_to_exp 
+            "if x = 1 then y + x else z;;")) = (str_to_exp 
+            "if 1 = 1 then y + 1 else z;;")) "subst conditional";
   unit_test ((subst "x" (str_to_exp "y + 1;;") (str_to_exp "fun x -> x + 1;;"))
-           = (str_to_exp "fun x -> x + 1;;")) 
-   "subst x = y + 1 in fun x -> x + 1";
+            = (str_to_exp "fun x -> x + 1;;")) 
+            "subst x = y + 1 in fun x -> x + 1";
   unit_test ((subst "x" (str_to_exp "y;;") (str_to_exp "fun z -> z * x;;"))
            = (str_to_exp "fun z -> z * y;;"))
    "subst x = y in fun z -> z * x";
