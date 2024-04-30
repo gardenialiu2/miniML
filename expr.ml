@@ -67,7 +67,7 @@ let vars_of_list : string list -> varidset =
 let rec free_vars (exp : expr) : varidset =
   match exp with
   | Var v -> SS.singleton v 
-  | Num _ | Bool _ | Raise | Unassigned -> SS.empty  
+  | Num _ | Bool _ | Float _ | Raise | Unassigned -> SS.empty  
   | Unop (_unop, expr) -> free_vars expr                
   | Binop (_binop, expr1, expr2) -> SS.union (free_vars expr1) (free_vars expr2)
   | Conditional (expr1, expr2, expr3) -> SS.union (SS.union (free_vars expr1) (free_vars expr2)) (free_vars expr3)
@@ -83,7 +83,7 @@ let rec free_vars (exp : expr) : varidset =
    variable names use the prefix "var". (Otherwise, they might
    accidentally be the same as a generated variable name.) *)
 
-let new_varname () : varid =
+let new_varname : unit -> varid =
   let suffix = ref 0 in
   fun () -> 
     suffix := !suffix + 1;
@@ -103,7 +103,7 @@ let new_varname () : varid =
 
    (* TODO can only check if subst works using eval *)
 
-let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
+let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   let subbed = subst var_name repl in
   match exp with
   | Var v -> if v = var_name then repl else exp
@@ -117,16 +117,16 @@ let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
     else if not (SS.mem v (free_vars repl)) then Fun (v, subbed expr1)
     else  
       let z = new_varname () in Fun (z, subst v (Var z) expr1)  (* ASK!!! TODO *)
-  | Let (v, def_expr, body_expr) -> 
-    if v = var_name then Let (v, subbed def_expr, body_expr)
-    else if not (SS.mem v (free_vars repl)) then Let (v, subbed def_expr, subbed body_expr)
+  | Let (v, e1, e2) -> 
+    if v = var_name then Let (v, subbed e1, e2)
+    else if not (SS.mem v (free_vars repl)) then Let (v, subbed e1, subbed e2)
     else  
-      let z = new_varname () in Let(z, subbed body_expr, subst v (Var z) expr1) 
+      let z = new_varname () in Let(z, subbed e2, subst v (Var z) e1) 
   | Letrec (v, def_expr, body_expr) -> 
       if v = var_name then exp
       else if SS.mem v (free_vars repl) then 
         let z = new_varname () in Letrec (z, subbed (subst v (Var z) def_expr),
-      (subbed (subst v (Var z)) body_expr))
+      (subbed (subst v (Var z) body_expr)))
       else Letrec (v, subbed def_expr, subbed body_expr)
   | App (expr1, expr2) -> App (subbed expr1, subbed expr2)
  
