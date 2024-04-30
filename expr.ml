@@ -15,6 +15,9 @@ type binop =
   | Plus
   | Minus
   | Times
+  | FPlus
+  | FMinus
+  | FTimes
   | Equals
   | LessThan
   | GreaterThan (* new *)

@@ -7,6 +7,7 @@ module Ev = Evaluation ;;
 module MP = Miniml_parse ;;
 module ML = Miniml_lex ;;
 module Ex = Expr ;;
+module Env = Ev.Env ;;
 
 open Printf ;;
 
@@ -46,7 +47,8 @@ let repl () =
         match res with
         | Val resexp ->
            printf "==> %s\n" (Ex.exp_to_concrete_string resexp)
-        | _ -> failwith "not handling other cases yet"
+        | Closure (resexp, env) -> printf "==> %s, {%s}\n" 
+          (Ex.exp_to_concrete_string resexp) (Env.env_to_string env)
       with
       | MP.Error -> printf "xx> parse error\n"
       | Ev.EvalError msg -> printf "xx> evaluation error: %s\n" msg

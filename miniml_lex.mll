@@ -32,6 +32,7 @@
     create_hashtable 8 [
                        ("=", EQUALS);
                        ("<", LESSTHAN);
+                       (">", GREATERTHAN);
                        (".", DOT);
                        ("->", DOT);
                        (";;", EOF);
@@ -39,6 +40,9 @@
                        ("+", PLUS);
                        ("-", MINUS);
                        ("*", TIMES);
+                       ("+.", FPLUS);
+                       ("-.", FMINUS);
+                       ("*.", FTIMES);
                        ("(", OPEN);
                        (")", CLOSE)
                      ]
@@ -49,10 +53,17 @@ let id = ['a'-'z'] ['a'-'z' '0'-'9']*
 let sym = ['(' ')'] | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^'
                             '.' '~' ';' '!' '?' '%' ':' '#']+)
 
+let float = digit+ ('.' digit*)? (['e' 'E'] ['+' '-']? digit+)?
+
 rule token = parse
   | digit+ as inum
         { let num = int_of_string inum in
           INT num
+        }
+  | float as fnum 
+        {
+          let num = float_of_string fnum in
+          FLOAT num
         }
   | id as word
         { try
