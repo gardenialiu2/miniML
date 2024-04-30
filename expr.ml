@@ -141,29 +141,29 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Num n -> string_of_int n                  
   | Bool b -> string_of_bool b    
   | Float f -> string_of_float f 
-  | Unop (unop, expr) -> "-" ^ (exp_to_concrete_string expr)               
+  | Unop (unop, expr) -> "~-(" ^ (exp_to_concrete_string expr) ^ ")"              
   | Binop (binop, expr1, expr2) -> let b_string = 
       (match binop with
-      | Plus -> "+"
-      | Minus -> "-"
-      | Times -> "*"
-      | Equals -> "="
-      | LessThan -> "<"
-      | GreaterThan -> ">"
+      | Plus -> " + "
+      | Minus -> " - "
+      | Times -> " * "
+      | Equals -> " = "
+      | LessThan -> " < "
+      | GreaterThan -> " > "
       ) in
     (exp_to_concrete_string expr1) ^ b_string ^ (exp_to_concrete_string expr2)       
   | Conditional (expr1, expr2, expr3) -> "if " ^ (exp_to_concrete_string expr1) 
     ^ " then " ^ (exp_to_concrete_string expr2) ^ " else " ^ 
     (exp_to_concrete_string expr3) 
-  | Fun (v, expr) -> "fun " ^ v ^ " -> " ^ (exp_to_concrete_string expr)            
+  | Fun (v, expr) -> "(fun " ^ v ^ " -> " ^ (exp_to_concrete_string expr) ^ ")"            
   | Let (v, expr1, expr2) -> "let " ^ v ^ " = " ^ 
-    (exp_to_concrete_string expr1) ^ " in " ^ (exp_to_concrete_string expr2)
+    (exp_to_concrete_string expr1) ^ " in (" ^ (exp_to_concrete_string expr2) ^ ")"
   | Letrec (v, expr1, expr2) -> "let rec " ^ v ^ " = " ^ 
-    (exp_to_concrete_string expr1) ^ " in " ^ (exp_to_concrete_string expr2)
+    (exp_to_concrete_string expr1) ^ " in (" ^ (exp_to_concrete_string expr2) ^ ")"
   | Raise -> "Raise"        (* ?? *)                    
   | Unassigned -> "Unassigned"              (* ?? *)            
-  | App (expr1, expr2) -> (exp_to_concrete_string expr1) ^ " " ^ 
-    (exp_to_concrete_string expr2)        
+  | App (expr1, expr2) -> (exp_to_concrete_string expr1) ^ " (" ^ 
+    (exp_to_concrete_string expr2) ^ ")"       
 ;;
      
 (* exp_to_abstract_string exp -- Return a string representation of the
@@ -174,7 +174,7 @@ let rec exp_to_abstract_string (exp : expr) : string =
   | Num n -> "Num(" ^ string_of_int n ^ ")"                 
   | Bool b -> "Bool(" ^ (if b then "true" else "false") ^ ")"     
   | Float f -> "Float(" ^ string_of_float f ^ ")"           
-  | Unop (unop, expr) -> "Unop(Neg(" ^ (exp_to_abstract_string expr) ^ "))"                
+  | Unop (_unop, expr) -> "Unop(Neg, " ^ (exp_to_abstract_string expr) ^ ")"                
   | Binop (binop, expr1, expr2) -> let b_string = 
       (match binop with
       | Plus -> "Plus"
