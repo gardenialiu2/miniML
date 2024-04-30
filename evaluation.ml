@@ -143,15 +143,18 @@ let extract (v : Env.value) : expr =
 
 let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr = 
   match b, left_expr, right_expr with
+  (* nums with nums *)
   | Plus, Num x1, Num x2 -> Num (x1 + x2)
   | Minus, Num x1, Num x2 -> Num (x1 - x2)
   | Times, Num x1, Num x2 -> Num (x1 * x2)
   | Equals, Num x1, Num x2 -> Bool (x1 = x2) 
   | LessThan, Num x1, Num x2 -> Bool (x1 < x2) 
-  | GreaterThan, Num x1, Num x2 -> Bool (x1 > x2) 
+  | GreaterThan, Num x1, Num x2 -> Bool (x1 > x2)
+  (* bools with bools *) 
   | Equals, Bool x1, Bool x2 -> Bool (x1 = x2) 
   | LessThan, Bool x1, Bool x2 -> Bool (x1 < x2) 
   | GreaterThan, Bool x1, Bool x2 -> Bool (x1 > x2) 
+  (* floats with floats *)
   | FPlus, Float x1, Float x2 -> Float (x1 +. x2)
   | FMinus, Float x1, Float x2 -> Float (x1 -. x2)
   | FTimes, Float x1, Float x2 -> Float (x1 *. x2)
