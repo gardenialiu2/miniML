@@ -141,7 +141,6 @@ let extract (v : Env.value) : expr =
   | Val x -> x
   | _ -> raise (EvalError "Extract type not supported") ;;
 
-(* The SUBSTITUTION MODEL evaluator -- to be completed *)
 let binopeval (b : binop) (left_expr : expr) (right_expr : expr) : expr = 
   match b, left_expr, right_expr with
   | Plus, Num x1, Num x2 -> Num (x1 + x2)
@@ -167,9 +166,9 @@ let unopeval (u : unop) (exp : expr) : expr =
         | Negate, Float x -> Float (~-.x)
         | _, _ -> raise (EvalError "Invalid Unop")
 
-let conditioneval (exp : expr) : bool = 
-  match exp with
-  | Bool b -> b 
+let conditioneval (val_exp : Env.value) : bool = 
+  match val_exp with
+  | Val Bool b -> b 
   | _ -> raise (invalid_arg "Invalid conditional") ;;
 
 (* eval helper function for all the diff models *)
@@ -190,7 +189,7 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
       Val (unopeval unop e)
     | Binop (b, e1, e2) -> Val (binopeval b (extract (ev e1)) (extract (ev e2)))
     | Conditional (if_e, then_e, else_e) ->
-      if conditioneval if_e then ev then_e else ev else_e
+      if conditioneval (ev if_e) then ev then_e else ev else_e
     | Let (v, e1, e2) ->
       (match m with
       | Sub -> ev (subst v (extract (ev e1)) e2)
@@ -233,7 +232,7 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
     | Unassigned -> raise (EvalError "Unassigned")
   in ev exp ;;
 
-
+(* The SUBSTITUTION MODEL evaluator -- to be completed *)
 let eval_s (exp : expr) (env : Env.env) : Env.value = 
   eval_helper Sub exp env ;;
    
