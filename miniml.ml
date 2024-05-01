@@ -45,9 +45,9 @@ let repl () =
            element of the `Env.value` type (found in `expr.ml`), so we
            just extract the expression back out and print it *)
         match res with
-        | Val resexp ->
+        | Ev.Env.Val resexp ->
            printf "==> %s\n" (Ex.exp_to_concrete_string resexp)
-        | Closure (resexp, env) -> printf "==> %s, {%s}\n" 
+        | Ev.Env.Closure (resexp, env) -> printf "==> %s, {%s}\n" 
           (Ex.exp_to_concrete_string resexp) (Env.env_to_string env)
       with
       | MP.Error -> printf "xx> parse error\n"
