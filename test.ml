@@ -43,7 +43,7 @@ let exp_to_abstract_string_test () =
           = "Letrec(x, Binop(Times, Var(x), Num(2)), \
             Binop(Plus, Num(1), Num(2)))") "abstract string letrec";
   unit_test (exp_to_abstract_string (App (Fun("x", 
-            Binop (Times, Var "x", Num 2)), Num 2)) = "App(Fun(x, 
+            Binop (Times, Var "x", Num 2)), Num 2)) = "App(Fun(x, \
             Binop(Times, Var(x), Num(2))), Num(2))") "abstract string complex";
   unit_test (exp_to_abstract_string Raise = "Raise") "abstract string raise";
   unit_test (exp_to_abstract_string Unassigned = "Unassigned") 

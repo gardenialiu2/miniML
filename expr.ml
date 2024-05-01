@@ -144,13 +144,16 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Num n -> string_of_int n                  
   | Bool b -> string_of_bool b    
   | Float f -> string_of_float f 
-  | Unop (unop, expr) -> "~-(" ^ (exp_to_concrete_string expr) ^ ")"              
+  | Unop (_unop, expr) -> "~-(" ^ (exp_to_concrete_string expr) ^ ")"              
   | Binop (binop, expr1, expr2) -> let b_string = 
       (match binop with
       | Plus -> " + "
       | Minus -> " - "
       | Times -> " * "
       | Equals -> " = "
+      | FPlus -> " +. "
+      | FMinus -> " -. "
+      | FTimes -> " *. "
       | LessThan -> " < "
       | GreaterThan -> " > "
       ) in
@@ -183,6 +186,9 @@ let rec exp_to_abstract_string (exp : expr) : string =
       | Plus -> "Plus"
       | Minus -> "Minus"
       | Times -> "Times"
+      | FPlus -> "FPlus"
+      | FMinus -> "FMinus"
+      | FTimes -> "FTimes"
       | Equals -> "Equals"
       | LessThan -> "LessThan"
       | GreaterThan -> "GreaterThan"
