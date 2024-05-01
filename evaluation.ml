@@ -170,9 +170,9 @@ let unopeval (u : unop) (exp : expr) : expr =
         | _, _ -> raise (EvalError "Invalid Unop")
 
 let conditioneval (val_exp : Env.value) : bool = 
-  match val_exp with
-  | Val Bool b -> b 
-  | _ -> raise (invalid_arg "Invalid conditional") ;;
+  match extract val_exp with
+  | Bool b -> b
+  | _ -> raise (EvalError "Invalid conditional") ;;
 
 (* eval helper function for all the diff models *)
 let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
@@ -206,7 +206,9 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
         let x = ref (Val Unassigned)
         in let env_x = extend env v x
         in let v_D = eval_helper Lex e1 env_x
-        in x := v_D; eval_helper Lex e2 env_x)
+        in (match v_D with
+        | Val Var _ -> raise (EvalError "letrec unbound variable")
+        | _ -> x := v_D; eval_helper Lex e2 env_x))
     | App (e1, e2) -> 
       (match m with
       | Sub -> (match ev e1 with
@@ -227,8 +229,8 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
                           in let ext = extend env_old v (ref val_q)
                           in eval_helper m e ext
           | _ -> raise (EvalError "Invalid application")))
-    | Raise -> raise (EvalError "Raise") (* TODO: is this EvalException?? *)
-    | Unassigned -> raise (EvalError "Unassigned") (* TODO: is this EvalException?? *)
+    | Raise -> raise EvalException
+    | Unassigned -> raise EvalException
   in ev exp ;;
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
