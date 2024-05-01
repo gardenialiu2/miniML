@@ -162,7 +162,7 @@ let expr4 = Let("x", Fun("x", Var("x")), App(Var("x"), Num(1))) ;;
 (* let x = 1 in let f = fun y -> x + y in f 2 -> 3 *)
 let expr5 = Let("x", Num(1), Let("f", Fun("y", Binop(Plus, Var("x"), Var("y"))),  
             App(Var("f"), Num(2)))) ;;
-let expr6 = Binop(Times, Float(3.), Float(2.)) ;;
+let expr6 = Binop(FTimes, Float(3.), Float(2.)) ;;
 (* let x = 5 in let rec x = 10 in x -> 10 *)
 let expr7 = Let("x", Num(5), Letrec("x", Num(10), Var("x"))) ;;
 (* let x = 10 in let x = fun y -> y * 2 in x 20 -> 40 *)
@@ -179,9 +179,9 @@ let expr11 =  Let("x", Num(5), Let("f", Fun("y", Binop(Plus, Var("x"),
               Var("y"))), Let("x", Num(10), App(Var("f"), Num(0))))) ;;
 (* -1. -> 1. *)
 let expr12 = Unop (Negate, Float(-1.)) ;;
-let expr13 = Binop (Plus, Float 1., Float 2.) ;;
-let expr14 = Binop (Minus, Float 3., Float 2.) ;;
-let expr15 = Binop (Times, Float 2., Float 3.) ;;
+let expr13 = Binop (FPlus, Float 1., Float 2.) ;;
+let expr14 = Binop (FMinus, Float 3., Float 2.) ;;
+let expr15 = Binop (FTimes, Float 2., Float 3.) ;;
 let expr16 = Binop (Equals, Float 2., Float 2.) ;;
 let expr17 = Binop (LessThan, Float 2., Float 3.) ;;
 let expr18 = Binop (GreaterThan, Float 2., Float 3.) ;;

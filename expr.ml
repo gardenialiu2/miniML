@@ -65,20 +65,16 @@ let vars_of_list : string list -> varidset =
   
 (* free_vars exp -- Returns the set of `varid`s corresponding to free
    variables in `exp` *)
-   (* TODOO Float for extension *)
-(* TODOOO how to test? *)
 let rec free_vars (exp : expr) : varidset =
   match exp with
   | Var v -> SS.singleton v 
-  | Num _ | Bool _ | Float _ | Raise | Unassigned -> SS.empty  
+  | Num _ | Bool _ | Float _ | Raise | Unassigned -> SS.empty 
   | Unop (_unop, expr) -> free_vars expr                
   | Binop (_binop, expr1, expr2) -> SS.union (free_vars expr1) (free_vars expr2)
   | Conditional (expr1, expr2, expr3) -> SS.union (SS.union (free_vars expr1) (free_vars expr2)) (free_vars expr3)
   | Fun (v, expr) -> SS.remove v (free_vars expr)
   | Let (v, expr1, expr2) -> SS.union (SS.remove v (free_vars expr2)) (free_vars expr1)
-  | Letrec (v, expr1, expr2) -> SS.union 
-                    (SS.remove v (free_vars expr1))
-                    (SS.remove v (free_vars expr2)) (* see if theres another function? diff? *)
+  | Letrec (v, expr1, expr2) -> SS.remove v (SS.union (free_vars expr1) (free_vars expr2))
   | App (expr1, expr2) -> SS.union (free_vars expr1) (free_vars expr2)
   
 (* new_varname () -- Returns a freshly minted `varid` with prefix
@@ -119,7 +115,7 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
     if v = var_name then exp
     else if not (SS.mem v (free_vars repl)) then Fun (v, subbed expr1)
     else  
-      let z = new_varname () in Fun (z, subst v (Var z) expr1)  (* ASK!!! TODO *)
+      let z = new_varname () in Fun (z, subst v (Var z) expr1) 
   | Let (v, e1, e2) -> 
     if v = var_name then Let (v, subbed e1, e2)
     else if not (SS.mem v (free_vars repl)) then Let (v, subbed e1, subbed e2)
@@ -166,8 +162,8 @@ let rec exp_to_concrete_string (exp : expr) : string =
     (exp_to_concrete_string expr1) ^ " in (" ^ (exp_to_concrete_string expr2) ^ ")"
   | Letrec (v, expr1, expr2) -> "let rec " ^ v ^ " = " ^ 
     (exp_to_concrete_string expr1) ^ " in (" ^ (exp_to_concrete_string expr2) ^ ")"
-  | Raise -> "Raise"        (* ?? *)                    
-  | Unassigned -> "Unassigned"              (* ?? *)            
+  | Raise -> "Raise"                 
+  | Unassigned -> "Unassigned"      
   | App (expr1, expr2) -> (exp_to_concrete_string expr1) ^ " (" ^ 
     (exp_to_concrete_string expr2) ^ ")"       
 ;;

@@ -196,15 +196,13 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
     | Let (v, e1, e2) ->
       (match m with
       | Sub -> ev (subst v (extract (ev e1)) e2)
-      (* TODO IS THIS RIGHT!! *)
       | Dyn | Lex -> eval_helper m e2 (extend env v (ref (ev e1))))
-    | Letrec (v, e1, e2) -> (* TODOOO IS THIS RIGHT *)
+    | Letrec (v, e1, e2) -> 
       (match m with
       | Sub -> let val_d = extract (ev e1) in 
         eval_helper m (subst v (subst v (Letrec (v, val_d, Var v)) val_d) e2) env
-      | Dyn -> (* TODO: IDK IF THIS RIGHT *) eval_helper m e2 (extend env v (ref (ev e1)))
+      | Dyn ->  eval_helper m e2 (extend env v (ref (ev e1)))
       | Lex -> 
-        (* TODO: IDK IF THIS IS RIGHT same as dyn but use references. eval_l vs eval_d. *)
         let x = ref (Val Unassigned)
         in let env_new = extend env v x
         in let vd = eval_helper Lex e1 env_new
@@ -231,8 +229,8 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
                           in let ext = extend env_old v (ref val_q)
                           in eval_helper m e ext
           | _ -> raise (EvalError "Invalid application")))
-    | Raise -> raise (EvalError "Raise")
-    | Unassigned -> raise (EvalError "Unassigned")
+    | Raise -> raise (EvalError "Raise") (* TODO: is this EvalException?? *)
+    | Unassigned -> raise (EvalError "Unassigned") (* TODO: is this EvalException?? *)
   in ev exp ;;
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
