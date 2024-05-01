@@ -138,9 +138,6 @@ let free_vars_tests () =
   unit_test (free_vars (Conditional (Var "x", Var "y", Var "z")) = 
   (vars_of_list ["x"; "y"; "z"])) "free vars conditional";
 ;;
-  
-(* TODO fix design!!! *)
-(* TODO test for application + fun. exercise 129 in textbook *)
 
 let new_var_name_test () = 
   unit_test (new_varname () = "v1")
@@ -228,6 +225,13 @@ let dyn_test () =
   unit_test((eval_d expr10 empty_env) = Val (Num (24))) "dyn expr10";
   unit_test((eval_d expr11 empty_env) = Val (Num (10))) "dyn expr11";
   unit_test((eval_d expr12 empty_env) = Val (Float (1.))) "dyn expr12";
+  unit_test((eval_d expr13 empty_env) = Val (Float (3.))) "dyn expr13";
+  unit_test((eval_d expr14 empty_env) = Val (Float (1.))) "dyn expr14";
+  unit_test((eval_d expr15 empty_env) = Val (Float (6.))) "dyn expr15";
+  unit_test((eval_d expr16 empty_env) = Val (Bool (true))) "dyn expr16";
+  unit_test((eval_d expr17 empty_env) = Val (Bool (true))) "dyn expr17";
+  unit_test((eval_d expr18 empty_env) = Val (Bool (false))) "dyn expr18";
+  unit_test((eval_d expr19 empty_env) = Val (Num (~-1))) "dyn expr19";
 ;;
 
 let lex_test () =
@@ -243,7 +247,14 @@ let lex_test () =
   unit_test((eval_l expr9 empty_env) = Val (Num (1))) "lex expr9";
   unit_test((eval_l expr10 empty_env) = Val (Num (24))) "lex expr10";
   unit_test((eval_l expr11 empty_env) = Val (Num (5))) "lex expr11";
-  unit_test((eval_d expr12 empty_env) = Val (Float (1.))) "lex expr12";
+  unit_test((eval_l expr12 empty_env) = Val (Float (1.))) "lex expr12";
+  unit_test((eval_l expr13 empty_env) = Val (Float (3.))) "lex expr13";
+  unit_test((eval_l expr14 empty_env) = Val (Float (1.))) "lex expr14";
+  unit_test((eval_l expr15 empty_env) = Val (Float (6.))) "lex expr15";
+  unit_test((eval_l expr16 empty_env) = Val (Bool (true))) "lex expr16";
+  unit_test((eval_l expr17 empty_env) = Val (Bool (true))) "lex expr17";
+  unit_test((eval_l expr18 empty_env) = Val (Bool (false))) "lex expr18";
+  unit_test((eval_l expr19 empty_env) = Val (Num (~-1))) "lex expr19";
 ;;
 
 let test_all () =

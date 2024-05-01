@@ -30,8 +30,8 @@
 (* Associativity and precedence *)
 %nonassoc IF
 %left LESSTHAN EQUALS GREATERTHAN
-%left PLUS MINUS
-%left TIMES
+%left PLUS MINUS FPLUS FMINUS
+%left TIMES FTIMES
 %nonassoc NEG
 
 (* Start symbol of the grammar and its type *)
