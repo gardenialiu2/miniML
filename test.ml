@@ -3,9 +3,7 @@ open CS51Utils ;;
 open Absbook ;;
 open Miniml ;;
 open Evaluation ;;
-open Miniml_parse ;;
-open Miniml_lex ;;
-
+open Env ;;
 
 let exp_to_abstract_string_test () =
   unit_test (exp_to_abstract_string (Num 1) = "Num(1)") "abstract string num";
