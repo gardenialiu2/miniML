@@ -102,10 +102,12 @@ let subst_tests () =
             "subst x = y + 1 in fun x -> x + 1";
   unit_test ((subst "x" (str_to_exp "y;;") (str_to_exp "fun z -> z * x;;"))
            = (str_to_exp "fun z -> z * y;;"))
-   "subst x = y in fun z -> z * x";
-  unit_test ((subst "x" (str_to_exp "y + 1;;") (str_to_exp "let x = 2 * x in x;;"))
+            "subst x = y in fun z -> z * x";
+  unit_test ((subst "x" (str_to_exp "y + 1;;") 
+          (str_to_exp "let x = 2 * x in x;;"))
            = (str_to_exp "let x = 2 * (y + 1) in x;;"))
-    "subst Let same var";;
+          "subst Let same var";
+;;
   
 let free_vars_tests () = 
   unit_test (free_vars (str_to_exp "1;;") = (vars_of_list [])) 
@@ -118,12 +120,12 @@ let free_vars_tests () =
     "free vars unassigned";
   unit_test (free_vars (Unop (Negate, Var "x")) = (vars_of_list ["x"]))
     "free vars unop";
-  unit_test (free_vars (Binop (Times, Var "x", Float 3.)) = (vars_of_list ["x"]))
-    "free vars in Binop float";
+  unit_test (free_vars (Binop (Times, Var "x", Float 3.)) = (vars_of_list 
+    ["x"])) "free vars in Binop float";
   unit_test (free_vars (str_to_exp "x + y;;") = (vars_of_list ["x"; "y"]))
     "free vars in Binop num";
-  unit_test (free_vars (str_to_exp "let x = 5 in x + y;;") = (vars_of_list ["y"]))
-    "free vars in Let";
+  unit_test (free_vars (str_to_exp "let x = 5 in x + y;;") = (vars_of_list 
+    ["y"])) "free vars in Let";
   unit_test (free_vars (App (Var "f", Var "x")) = (vars_of_list ["f"; "x"]))
     "free vars App";
   unit_test (free_vars (Let ("x", Num 3, Unop (Negate, Var "x"))) =
@@ -145,35 +147,36 @@ let new_var_name_test () =
   unit_test (new_varname () = "v2")
     "new_varname 2";
   unit_test (new_varname () = "v3")
-    "new_varname 3" ;;
+    "new_varname 3" 
+;;
 
 let expr0 = Num(3);; (*3*)
 (* let x = 1 in x -> 1*)
-let expr1 = Let("x", Num(1), Var("x")) ;; 
+let expr1 = Let("x", Num(1), Var("x"));; 
 (* let x = 1 in let y = 2 in x -> 1 *)
 let expr2 = Let("x", Num(1), Let("y", Num(2), Var("x")));; 
 (* let x = 1 in let x = x + 1 in x -> 3 *)
-let expr3 = Let("x", Num(1), Let("x", Binop(Plus, Var("x"), Num(2)), Var("x")))  ;;
+let expr3 = Let("x", Num(1), Let("x", Binop(Plus, Var("x"), Num(2)), Var("x")));;
 (* let x = fun x -> x in x 1 -> 1 *)
-let expr4 = Let("x", Fun("x", Var("x")), App(Var("x"), Num(1))) ;;
+let expr4 = Let("x", Fun("x", Var("x")), App(Var("x"), Num(1)));;
 (* let x = 1 in let f = fun y -> x + y in f 2 -> 3 *)
 let expr5 = Let("x", Num(1), Let("f", Fun("y", Binop(Plus, Var("x"), Var("y"))),  
-            App(Var("f"), Num(2)))) ;;
-let expr6 = Binop(FTimes, Float(3.), Float(2.)) ;;
+            App(Var("f"), Num(2))));;
+let expr6 = Binop(FTimes, Float(3.), Float(2.));;
 (* let x = 5 in let rec x = 10 in x -> 10 *)
-let expr7 = Let("x", Num(5), Letrec("x", Num(10), Var("x"))) ;;
+let expr7 = Let("x", Num(5), Letrec("x", Num(10), Var("x")));;
 (* let x = 10 in let x = fun y -> y * 2 in x 20 -> 40 *)
 let expr8 = Let("x", Num(1), Let("x", Fun("y", Binop(Times, Var("y"), Num(2))),
-  App(Var("x"), Num(3)))) ;;
+            App(Var("x"), Num(3))));;
 (* let rec x = 2 in let x = 1 in x -> 1 *)
-let expr9 = Letrec("x", Num(2), Let("x", Num(1), Var("x"))) ;;
+let expr9 = Letrec("x", Num(2), Let("x", Num(1), Var("x")));;
 (* let rec f = fun x -> if x = 0 then 1 else x * f (x-1) in f 4 -> 24 *)
 let expr10 = Letrec("f", Fun("x", Conditional(Binop(Equals, Var("x"), Num(0)),
             Num(1), Binop(Times, Var("x"), App(Var("f"), Binop(Minus, Var("x"),
-            Num(1)))))), App(Var("f"), Num(4))) ;;
+            Num(1)))))), App(Var("f"), Num(4)));;
 (* let x = 5 in let f = fun y -> x + y in let x = 10 in f 0 *)
 let expr11 =  Let("x", Num(5), Let("f", Fun("y", Binop(Plus, Var("x"), 
-              Var("y"))), Let("x", Num(10), App(Var("f"), Num(0))))) ;;
+              Var("y"))), Let("x", Num(10), App(Var("f"), Num(0)))));;
 (* -1. -> 1. *)
 let expr12 = Unop (Negate, Float(-1.)) ;;
 let expr13 = Binop (FPlus, Float 1., Float 2.) ;;
@@ -183,7 +186,6 @@ let expr16 = Binop (Equals, Float 2., Float 2.) ;;
 let expr17 = Binop (LessThan, Float 2., Float 3.) ;;
 let expr18 = Binop (GreaterThan, Float 2., Float 3.) ;;
 let expr19 = Unop (Negate, Num (1));;
-
 
 let empty_env = Evaluation.Env.empty() ;;
   
@@ -208,7 +210,6 @@ let sub_test () =
   unit_test((eval_s expr17 empty_env) = Val (Bool (true))) "sub expr17";
   unit_test((eval_s expr18 empty_env) = Val (Bool (false))) "sub expr18";
   unit_test((eval_s expr19 empty_env) = Val (Num (~-1))) "sub expr19";
-  
 ;;
 
 let dyn_test () = 

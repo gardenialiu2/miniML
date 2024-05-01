@@ -71,10 +71,13 @@ let rec free_vars (exp : expr) : varidset =
   | Num _ | Bool _ | Float _ | Raise | Unassigned -> SS.empty 
   | Unop (_unop, expr) -> free_vars expr                
   | Binop (_binop, expr1, expr2) -> SS.union (free_vars expr1) (free_vars expr2)
-  | Conditional (expr1, expr2, expr3) -> SS.union (SS.union (free_vars expr1) (free_vars expr2)) (free_vars expr3)
+  | Conditional (expr1, expr2, expr3) -> SS.union (SS.union (free_vars expr1) 
+    (free_vars expr2)) (free_vars expr3)
   | Fun (v, expr) -> SS.remove v (free_vars expr)
-  | Let (v, expr1, expr2) -> SS.union (SS.remove v (free_vars expr2)) (free_vars expr1)
-  | Letrec (v, expr1, expr2) -> SS.remove v (SS.union (free_vars expr1) (free_vars expr2))
+  | Let (v, expr1, expr2) -> SS.union (SS.remove v (free_vars expr2)) 
+    (free_vars expr1)
+  | Letrec (v, expr1, expr2) -> SS.remove v (SS.union (free_vars expr1) 
+    (free_vars expr2))
   | App (expr1, expr2) -> SS.union (free_vars expr1) (free_vars expr2)
   
 (* new_varname () -- Returns a freshly minted `varid` with prefix
@@ -100,15 +103,14 @@ let new_varname : unit -> varid =
    substituted for free occurrences of `var_name`, avoiding variable
    capture *)
 
-   (* TODO can only check if subst works using eval *)
-
 let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   let subbed = subst var_name repl in
   match exp with
   | Var v -> if v = var_name then repl else exp
   | Num _ | Float _ | Bool _ | Raise | Unassigned -> exp
   | Unop (unop, expr1) -> Unop (unop, subbed expr1)                
-  | Binop (binop, left_expr, right_expr) -> Binop (binop, subbed left_expr, subbed right_expr)     
+  | Binop (binop, left_expr, right_expr) -> Binop (binop, subbed left_expr, 
+    subbed right_expr)     
   | Conditional (if_expr, then_expr, else_expr) -> 
     Conditional (subbed if_expr, subbed then_expr, subbed else_expr)
   | Fun (v, expr1) ->
@@ -157,11 +159,14 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Conditional (expr1, expr2, expr3) -> "if " ^ (exp_to_concrete_string expr1) 
     ^ " then " ^ (exp_to_concrete_string expr2) ^ " else " ^ 
     (exp_to_concrete_string expr3) 
-  | Fun (v, expr) -> "(fun " ^ v ^ " -> " ^ (exp_to_concrete_string expr) ^ ")"            
+  | Fun (v, expr) -> "(fun " ^ v ^ " -> " ^ (exp_to_concrete_string expr) ^ 
+      ")"            
   | Let (v, expr1, expr2) -> "let " ^ v ^ " = " ^ 
-    (exp_to_concrete_string expr1) ^ " in (" ^ (exp_to_concrete_string expr2) ^ ")"
+    (exp_to_concrete_string expr1) ^ " in (" ^ (exp_to_concrete_string expr2) ^ 
+      ")"
   | Letrec (v, expr1, expr2) -> "let rec " ^ v ^ " = " ^ 
-    (exp_to_concrete_string expr1) ^ " in (" ^ (exp_to_concrete_string expr2) ^ ")"
+    (exp_to_concrete_string expr1) ^ " in (" ^ (exp_to_concrete_string expr2) ^ 
+      ")"
   | Raise -> "Raise"                 
   | Unassigned -> "Unassigned"      
   | App (expr1, expr2) -> (exp_to_concrete_string expr1) ^ " (" ^ 
@@ -198,7 +203,8 @@ let rec exp_to_abstract_string (exp : expr) : string =
   | Let (v, expr1, expr2) -> "Let(" ^ v ^ ", " ^ (exp_to_abstract_string expr1) 
     ^ ", " ^ (exp_to_abstract_string expr2) ^ ")"
   | Letrec (v, expr1, expr2) -> "Letrec(" ^ v ^ ", " ^ 
-    (exp_to_abstract_string expr1) ^ ", " ^ (exp_to_abstract_string expr2) ^ ")"
+    (exp_to_abstract_string expr1) ^ ", " ^ (exp_to_abstract_string expr2) ^ 
+    ")"
   | Raise -> "Raise"                   
   | Unassigned -> "Unassigned"                      
   | App (expr1, expr2) -> "App(" ^ (exp_to_abstract_string expr1) ^ ", " ^ 

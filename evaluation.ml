@@ -87,8 +87,8 @@ module Env : ENV =
     let rec value_to_string ?(printenvp : bool = true) (v : value) : string =
       match v with
       | Val exp -> exp_to_concrete_string exp
-      | Closure (exp, env) -> if printenvp then "Closure(" ^ exp_to_concrete_string exp ^
-        ", " ^ env_to_string env ^ ")"
+      | Closure (exp, env) -> if printenvp then "Closure(" ^ 
+        exp_to_concrete_string exp ^ ", " ^ env_to_string env ^ ")"
       else exp_to_concrete_string exp
 
     and env_to_string (env : env) : string =
@@ -190,7 +190,8 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
     | Fun _ -> if m = Lex then close exp env else Val exp
     | Unop (unop, e) -> 
       Val (unopeval unop e)
-    | Binop (b, e1, e2) -> Val (binopeval b (extract (ev e1)) (extract (ev e2)))
+    | Binop (b, e1, e2) -> Val (binopeval b (extract (ev e1)) 
+      (extract (ev e2)))
     | Conditional (if_e, then_e, else_e) ->
       if conditioneval (ev if_e) then ev then_e else ev else_e
     | Let (v, e1, e2) ->
@@ -200,7 +201,8 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
     | Letrec (v, e1, e2) -> 
       (match m with
       | Sub -> let val_d = extract (ev e1) in 
-        eval_helper m (subst v (subst v (Letrec (v, val_d, Var v)) val_d) e2) env
+        eval_helper m (subst v (subst v (Letrec (v, val_d, Var v)) val_d) e2) 
+        env
       | Dyn ->  eval_helper m e2 (extend env v (ref (ev e1)))
       | Lex -> 
         let x = ref (Val Unassigned)
