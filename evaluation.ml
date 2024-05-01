@@ -204,11 +204,9 @@ let rec eval_helper (m : model) (exp : expr) (env : Env.env) : Env.value =
       | Dyn ->  eval_helper m e2 (extend env v (ref (ev e1)))
       | Lex -> 
         let x = ref (Val Unassigned)
-        in let env_new = extend env v x
-        in let vd = eval_helper Lex e1 env_new
-        in (match vd with
-           | Val Var _ -> raise (EvalError "Letrec unbound variable")
-           | _ -> x := vd; eval_helper Lex e2 env_new))
+        in let env_x = extend env v x
+        in let v_D = eval_helper Lex e1 env_x
+        in x := v_D; eval_helper Lex e2 env_x)
     | App (e1, e2) -> 
       (match m with
       | Sub -> (match ev e1 with
